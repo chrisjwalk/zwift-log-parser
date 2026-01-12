@@ -1,0 +1,22 @@
+# Node
+node_modules/
+
+# Build
+dist/
+
+# Logs and generated
+logs/
+*.log
+parsed.txt
+
+# Environment
+.env
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Misc
+npm-debug.log
+coverage/

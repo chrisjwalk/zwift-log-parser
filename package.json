@@ -1,0 +1,30 @@
+{
+  "name": "zwift-log-parser",
+  "version": "0.0.1",
+  "description": "TypeScript console application for parsing Zwift log files",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "zwift-log-parser": "ts-node src/index.ts",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "zwift",
+    "log",
+    "parser"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "asciichart": "^1.5.25",
+    "chalk": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/asciichart": "^1.5.4",
+    "@types/node": "^20.10.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
