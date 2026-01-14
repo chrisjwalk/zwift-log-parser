@@ -460,7 +460,7 @@ export class ZwiftLogParser {
 
     let match;
     while ((match = saveActivityRegex.exec(content)) !== null) {
-      let activityName = match[1].trim();
+      const activityName = match[1].trim();
 
       // Extract world from activity name
       const worldMatch = activityName.match(/in (.+)$/);

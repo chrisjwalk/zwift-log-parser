@@ -20,7 +20,9 @@
     "zwift-log-parser": "tsx --tsconfig cli/tsconfig.app.json cli/src/main.ts",
     "dev": "nx build cli --watch",
     "clean": "rimraf dist",
-    "pack": "npm pack --pack-destination dist"
+    "pack": "npm pack --pack-destination dist",
+    "lint": "nx run-many --target=lint --projects=core,cli",
+    "test": "nx run-many --target=test --projects=core,cli"
   },
   "keywords": [
     "zwift",
