@@ -20,3 +20,10 @@ parsed.txt
 # Misc
 npm-debug.log
 coverage/
+
+.nx/cache
+.nx/workspace-data
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+
+tmp/
