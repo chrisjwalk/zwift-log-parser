@@ -1,4 +1,4 @@
-import { ZwiftLogParser } from '@zwift-log-parser/core';
+import { ZwiftLogParser, pickFile } from '@zwift-log-parser/core';
 import * as asciichart from 'asciichart';
 import chalk from 'chalk';
 import { Command } from 'commander';
@@ -23,9 +23,11 @@ const main = async (): Promise<void> => {
 
   program
     .name('zwift-log-parser')
-    .description('Parse and analyze Zwift activity log files with FPS metrics and route information')
+    .description(
+      'Parse and analyze Zwift activity log files with FPS metrics and route information',
+    )
     .version(appVersion)
-    .argument('<logfile>', 'path to Zwift log file to parse')
+    .argument('[logfile]', 'path to Zwift log file to parse')
     .option('--no-fps', 'skip FPS analysis and graphs')
     .option('--no-routes', 'skip route/activity information')
     .option('--no-metadata', 'skip session and system metadata')
@@ -35,17 +37,44 @@ const main = async (): Promise<void> => {
       outputError: (str, write) => {
         // Customize error output
         write(chalk.red.bold('\n✗ ') + chalk.red(str.trim()) + '\n');
-      }
+      },
     })
-    .action(async (logfile: string, options) => {
+    .action(async (logfileArg: string | undefined, options) => {
+      let logfile = logfileArg;
+
+      // If no logfile provided, show file picker
+      if (!logfile) {
+        const selectedFile = await pickFile({
+          message: 'Select a Zwift log file',
+          fileExtensions: ['.log', '.txt'],
+          defaultPath: './logs/Log.txt',
+        });
+
+        if (!selectedFile) {
+          console.log(chalk.yellow('\nOperation cancelled.'));
+          process.exit(0);
+        }
+
+        logfile = selectedFile;
+      }
+
       const parser = new ZwiftLogParser();
 
       try {
         // Check if file exists
         if (!fs.existsSync(logfile)) {
-          console.error(chalk.red.bold('✗ Error: ') + chalk.red(`File not found: ${logfile}`));
-          console.error(chalk.yellow('\n💡 Tip: Please provide a valid path to a Zwift log file.'));
-          console.error(chalk.dim('Example: zwift-log-parser /path/to/Log.txt\n'));
+          console.error(
+            chalk.red.bold('✗ Error: ') +
+              chalk.red(`File not found: ${logfile}`),
+          );
+          console.error(
+            chalk.yellow(
+              '\n💡 Tip: Please provide a valid path to a Zwift log file.',
+            ),
+          );
+          console.error(
+            chalk.dim('Example: zwift-log-parser /path/to/Log.txt\n'),
+          );
           process.exit(1);
         }
 
@@ -57,36 +86,52 @@ const main = async (): Promise<void> => {
         // JSON output mode
         if (options.json) {
           // Process routes to add duration and remove incorrect properties
-          const processedRoutes = routes.map(route => {
+          const processedRoutes = routes.map((route) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { distanceCm, elevationCm, ...rest } = route;
             return {
               ...rest,
-              durationSeconds: parser.calculateDurationSeconds(route.startTime, route.endTime),
-              duration: parser.calculateDuration(route.startTime, route.endTime)
+              durationSeconds: parser.calculateDurationSeconds(
+                route.startTime,
+                route.endTime,
+              ),
+              duration: parser.calculateDuration(
+                route.startTime,
+                route.endTime,
+              ),
             };
           });
 
           // Process worlds to add duration to activities
-          const processedWorlds = worlds.map(world => ({
+          const processedWorlds = worlds.map((world) => ({
             name: world.name,
-            activities: world.activities.map(activity => {
+            activities: world.activities.map((activity) => {
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
               const { distanceCm, elevationCm, ...rest } = activity;
               return {
                 ...rest,
-                durationSeconds: parser.calculateDurationSeconds(activity.startTime, activity.endTime),
-                duration: parser.calculateDuration(activity.startTime, activity.endTime)
+                durationSeconds: parser.calculateDurationSeconds(
+                  activity.startTime,
+                  activity.endTime,
+                ),
+                duration: parser.calculateDuration(
+                  activity.startTime,
+                  activity.endTime,
+                ),
               };
-            })
+            }),
           }));
 
           const output = {
             metadata: options.metadata ? metadata : undefined,
             routes: options.routes ? processedRoutes : undefined,
             worlds: options.routes ? processedWorlds : undefined,
-            fps: options.fps ? {
-              entries: entries.length,
-              stats: parser.calculateFpsStats(entries.map(e => e.fps))
-            } : undefined
+            fps: options.fps
+              ? {
+                  entries: entries.length,
+                  stats: parser.calculateFpsStats(entries.map((e) => e.fps)),
+                }
+              : undefined,
           };
           console.log(JSON.stringify(output, null, 2));
           return;
@@ -110,7 +155,9 @@ const main = async (): Promise<void> => {
             );
           if (metadata.gameVersion)
             console.log(
-              chalk.white(`  Game Version:   ${chalk.cyan(metadata.gameVersion)}`),
+              chalk.white(
+                `  Game Version:   ${chalk.cyan(metadata.gameVersion)}`,
+              ),
             );
           if (metadata.device)
             console.log(
@@ -128,7 +175,9 @@ const main = async (): Promise<void> => {
             );
 
           console.log(
-            chalk.green('\n═══════════════════════════════════════════════════'),
+            chalk.green(
+              '\n═══════════════════════════════════════════════════',
+            ),
           );
           console.log(chalk.green.bold('  System Information'));
           console.log(
@@ -140,7 +189,9 @@ const main = async (): Promise<void> => {
             );
           if (metadata.gpuDriver)
             console.log(
-              chalk.white(`  Driver:         ${chalk.yellow(metadata.gpuDriver)}`),
+              chalk.white(
+                `  Driver:         ${chalk.yellow(metadata.gpuDriver)}`,
+              ),
             );
           if (metadata.cpu)
             console.log(
@@ -152,7 +203,9 @@ const main = async (): Promise<void> => {
             );
           if (metadata.resolution)
             console.log(
-              chalk.white(`  Resolution:     ${chalk.yellow(metadata.resolution)}`),
+              chalk.white(
+                `  Resolution:     ${chalk.yellow(metadata.resolution)}`,
+              ),
             );
           if (metadata.shadowResolution)
             console.log(
@@ -171,7 +224,9 @@ const main = async (): Promise<void> => {
         // Display worlds with activities
         if (options.routes && worlds.length > 0) {
           console.log(
-            chalk.yellow('\n═══════════════════════════════════════════════════'),
+            chalk.yellow(
+              '\n═══════════════════════════════════════════════════',
+            ),
           );
           console.log(chalk.yellow.bold('  Worlds'));
           console.log(
@@ -186,7 +241,9 @@ const main = async (): Promise<void> => {
               for (const activity of world.activities) {
                 if (!activityNames.has(activity.name)) {
                   activityNames.add(activity.name);
-                  console.log(chalk.white(`  • ${chalk.magenta(activity.name)}`));
+                  console.log(
+                    chalk.white(`  • ${chalk.magenta(activity.name)}`),
+                  );
                 }
               }
             }
@@ -236,11 +293,15 @@ const main = async (): Promise<void> => {
           console.log(chalk.cyan(chart));
 
           console.log(
-            chalk.magenta('\n═══════════════════════════════════════════════════'),
+            chalk.magenta(
+              '\n═══════════════════════════════════════════════════',
+            ),
           );
           console.log(chalk.magenta.bold('  Overall FPS Statistics'));
           console.log(
-            chalk.magenta('═══════════════════════════════════════════════════'),
+            chalk.magenta(
+              '═══════════════════════════════════════════════════',
+            ),
           );
           console.log(
             chalk.white(`  Average:      ${chalk.green(avgFps.toFixed(2))}`),
@@ -269,7 +330,9 @@ const main = async (): Promise<void> => {
           const worldLoadRegex =
             /GameLoadLevel: Creating New Activity \{worldId: (\d+)\}/g;
           let match;
-          while ((match = worldLoadRegex.exec(parser.readFile(logfile))) !== null) {
+          while (
+            (match = worldLoadRegex.exec(parser.readFile(logfile))) !== null
+          ) {
             worldIdChanges.push({
               index: match.index,
               worldId: parseInt(match[1], 10),
@@ -312,7 +375,10 @@ const main = async (): Promise<void> => {
           const fpsRegex = /\[([\d:.]+)\] FPS ([\d.]+)/g;
           const fpsPositions: Array<{ index: number; fps: number }> = [];
           while ((match = fpsRegex.exec(content)) !== null) {
-            fpsPositions.push({ index: match.index, fps: parseFloat(match[2]) });
+            fpsPositions.push({
+              index: match.index,
+              fps: parseFloat(match[2]),
+            });
           }
 
           // Assign each FPS entry to a world
@@ -322,7 +388,10 @@ const main = async (): Promise<void> => {
               if (!worldFpsMap.has(world)) {
                 worldFpsMap.set(world, []);
               }
-              worldFpsMap.get(world)!.push(fpsEntry.fps);
+              const worldFps = worldFpsMap.get(world);
+              if (worldFps) {
+                worldFps.push(fpsEntry.fps);
+              }
             }
           }
 
@@ -331,7 +400,9 @@ const main = async (): Promise<void> => {
             const worldFps = worldFpsMap.get(world.name);
 
             if (!worldFps || worldFps.length === 0) {
-              console.log(chalk.yellow(`  ${world.name} - No FPS data available`));
+              console.log(
+                chalk.yellow(`  ${world.name} - No FPS data available`),
+              );
               continue;
             }
 
@@ -357,7 +428,10 @@ const main = async (): Promise<void> => {
             }
 
             const worldStats = parser.calculateFpsStats(worldFps);
-            const downsampledWorldFps = parser.downsampleData(worldFps, graphWidth);
+            const downsampledWorldFps = parser.downsampleData(
+              worldFps,
+              graphWidth,
+            );
             const worldChart = asciichart.plot([downsampledWorldFps], {
               height: 15,
               min: Math.floor(worldStats.min) - 5,
@@ -367,7 +441,10 @@ const main = async (): Promise<void> => {
             console.log(chalk.blue.bold(`  📍 ${world.name}\n`));
             console.log(chalk.blue(worldChart));
 
-            const duration = parser.calculateDuration(worldStartTime, worldEndTime);
+            const duration = parser.calculateDuration(
+              worldStartTime,
+              worldEndTime,
+            );
             console.log(
               chalk.white(
                 `\n  Time: ${chalk.cyan(duration)} | Average: ${chalk.green(

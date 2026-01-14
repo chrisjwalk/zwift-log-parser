@@ -478,9 +478,9 @@ export class ZwiftLogParser {
           worldOrder.push(worldName);
         }
 
-        const worldData = worldActivities.get(worldName)!;
+        const worldData = worldActivities.get(worldName);
         // Only add if not already present (avoid duplicates from multiple saves)
-        if (!worldData.activityNames.includes(activityName)) {
+        if (worldData && !worldData.activityNames.includes(activityName)) {
           worldData.activityNames.push(activityName);
         }
       }
@@ -488,11 +488,11 @@ export class ZwiftLogParser {
 
     // Build world sessions
     const worldSessions: WorldSession[] = worldOrder.map((worldName) => {
-      const worldData = worldActivities.get(worldName)!;
+      const worldData = worldActivities.get(worldName);
+      if (!worldData) return { name: worldName, activities: [] };
 
       // Find activities for this world
       const worldRoutes: RouteSession[] = [];
-      const addedRoutes = new Set<string>(); // Track unique routes we've added
 
       for (const activityName of worldData.activityNames) {
         // Extract route name from activity (prefer "on RouteName in World" pattern)
