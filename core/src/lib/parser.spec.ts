@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { fileURLToPath } from 'url';
 import { ZwiftLogParser } from './parser';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const FIXTURE_LOG = join(__dirname, '__fixtures__/Log.txt');
 
 describe('ZwiftLogParser', () => {
   const parser = new ZwiftLogParser();
@@ -109,6 +115,108 @@ describe('ZwiftLogParser', () => {
     });
   });
 
+  describe('parseFpsPerWorld', () => {
+    // Minimal log fragment helpers
+    const worldLoad = (worldId: number) =>
+      `[10:00:00] INFO LEVEL: [SaveActivityService] GameLoadLevel: Creating New Activity {worldId: ${worldId}}`;
+    const saveActivity = (name: string) =>
+      `[10:00:01] INFO LEVEL: [SaveActivityService] ZNet::SaveActivity calling zwift_network::save_activity with {name: Zwift - ${name}, uploadTo3P: True}`;
+    const fpsLine = (time: string, fps: number) =>
+      `[${time}] FPS ${fps.toFixed(2)}, 0, 0, 0`;
+
+    it('groups FPS entries under the correct world name', () => {
+      const content = [
+        worldLoad(1),
+        saveActivity('Triple Flat Loops in Watopia'),
+        fpsLine('10:01:00', 90),
+        fpsLine('10:02:00', 100),
+        fpsLine('10:03:00', 110),
+      ].join('\n');
+
+      const result = parser.parseFpsPerWorld(content);
+      expect(result.has('Watopia')).toBe(true);
+      expect(result.get('Watopia')?.fps).toEqual([90, 100, 110]);
+    });
+
+    it('extracts world name from plain "WorldName" (no route prefix)', () => {
+      const content = [
+        worldLoad(2),
+        saveActivity('Makuri Islands'),
+        fpsLine('10:01:00', 60),
+      ].join('\n');
+
+      const result = parser.parseFpsPerWorld(content);
+      // No "in " in activity name — world name falls back to the raw value
+      expect(result.has('Makuri Islands')).toBe(true);
+    });
+
+    it('tracks multiple worlds separately', () => {
+      const content = [
+        worldLoad(1),
+        saveActivity('Triple Flat Loops in Watopia'),
+        fpsLine('10:01:00', 100),
+        worldLoad(6),
+        saveActivity('Chasing the Sun in Makuri Islands'),
+        fpsLine('11:01:00', 80),
+        fpsLine('11:02:00', 90),
+      ].join('\n');
+
+      const result = parser.parseFpsPerWorld(content);
+      expect(result.get('Watopia')?.fps).toEqual([100]);
+      expect(result.get('Makuri Islands')?.fps).toEqual([80, 90]);
+    });
+
+    it('records startTime and endTime correctly', () => {
+      const content = [
+        worldLoad(1),
+        saveActivity('The Big Ring in Watopia'),
+        fpsLine('10:00:00', 100),
+        fpsLine('10:30:00', 110),
+        fpsLine('11:00:00', 90),
+      ].join('\n');
+
+      const result = parser.parseFpsPerWorld(content);
+      const data = result.get('Watopia');
+      expect(data).toBeDefined();
+      expect(data?.startTime).toBe('10:00:00');
+      expect(data?.endTime).toBe('11:00:00');
+    });
+
+    it('falls back pre-world-load FPS entries to the first known world', () => {
+      const content = [
+        fpsLine('09:59:00', 60), // before any world load
+        fpsLine('09:59:30', 70),
+        worldLoad(1),
+        saveActivity('Triple Flat Loops in Watopia'),
+        fpsLine('10:01:00', 100),
+      ].join('\n');
+
+      const result = parser.parseFpsPerWorld(content);
+      // All entries (including pre-load) should appear under Watopia
+      expect(result.get('Watopia')?.fps).toEqual([60, 70, 100]);
+    });
+
+    it('returns empty map when no world loads are present', () => {
+      const content = [
+        fpsLine('10:00:00', 60),
+        fpsLine('10:01:00', 70),
+      ].join('\n');
+
+      const result = parser.parseFpsPerWorld(content);
+      expect(result.size).toBe(0);
+    });
+
+    it('returns empty map when no FPS entries are present', () => {
+      const content = [
+        worldLoad(1),
+        saveActivity('Triple Flat Loops in Watopia'),
+      ].join('\n');
+
+      const result = parser.parseFpsPerWorld(content);
+      expect(result.size).toBe(0);
+    });
+  });
+
   describe('calculateDuration', () => {
     it('should calculate duration between two times', () => {
       const result = parser.calculateDuration('12:00:00', '12:30:45');
@@ -123,6 +231,55 @@ describe('ZwiftLogParser', () => {
     it('should handle day boundary', () => {
       const result = parser.calculateDuration('23:50:00', '00:10:00');
       expect(result).toBe('20m 0s');
+    });
+  });
+
+  describe('integration — real log file', () => {
+    const content = readFileSync(FIXTURE_LOG, 'utf-8');
+
+    it('parses session metadata correctly', () => {
+      const metadata = parser.parseMetadata(content);
+      expect(metadata.logTime).toBe('21:09:07 2026-01-08');
+      expect(metadata.gameVersion).toBe('1.104.4(157262) rc/1.104.4');
+      expect(metadata.device).toBe('PC');
+      expect(metadata.gpu).toBe('NVIDIA GeForce RTX 5060/PCIe/SSE2');
+      expect(metadata.cpu).toContain('i5-12600KF');
+      expect(metadata.graphicsProfile).toBe('ultra');
+    });
+
+    it('parses worlds and routes correctly', () => {
+      const routes = parser.parseRouteSessions(content);
+      const worlds = parser.parseWorlds(content, routes);
+      expect(worlds).toHaveLength(1);
+      expect(worlds[0].name).toBe('Watopia');
+      const routeNames = worlds[0].activities.map((a) => a.name);
+      expect(routeNames).toContain('Triple Flat Loops');
+      expect(routeNames).toContain('The Big Ring');
+    });
+
+    it('groups all FPS entries under Watopia', () => {
+      const result = parser.parseFpsPerWorld(content);
+      expect(result.size).toBe(1);
+      expect(result.has('Watopia')).toBe(true);
+    });
+
+    it('produces correct FPS statistics for Watopia', () => {
+      const result = parser.parseFpsPerWorld(content);
+      const data = result.get('Watopia');
+      expect(data).toBeDefined();
+      const stats = parser.calculateFpsStats(data?.fps ?? []);
+      expect(stats.avg).toBeGreaterThan(95);
+      expect(stats.avg).toBeLessThan(110);
+      expect(stats.max).toBeCloseTo(120.97, 1);
+      expect(stats.min).toBeLessThan(30);
+    });
+
+    it('records correct session start and end times for Watopia FPS', () => {
+      const result = parser.parseFpsPerWorld(content);
+      const data = result.get('Watopia');
+      expect(data).toBeDefined();
+      expect(data?.startTime).toBe('21:09:55');
+      expect(data?.endTime).toBe('23:02:41');
     });
   });
 });

@@ -5,14 +5,20 @@ import * as path from 'path';
 import * as inquirer from '@inquirer/prompts';
 
 // Mock the modules
-vi.mock('fs');
-vi.mock('@inquirer/prompts');
+vi.mock('fs', () => ({
+  readdirSync: vi.fn(),
+  statSync: vi.fn(),
+}));
+vi.mock('@inquirer/prompts', () => ({
+  select: vi.fn(),
+  input: vi.fn(),
+}));
 
 describe('pickFile', () => {
-  const mockReaddirSync = vi.mocked(fs.readdirSync) as ReturnType<typeof vi.mocked<typeof fs.readdirSync>>;
-  const mockStatSync = vi.mocked(fs.statSync);
-  const mockSelect = vi.mocked(inquirer.select) as ReturnType<typeof vi.mocked<typeof inquirer.select>>;
-  const mockInput = vi.mocked(inquirer.input) as ReturnType<typeof vi.mocked<typeof inquirer.input>>;
+  const mockReaddirSync = fs.readdirSync as ReturnType<typeof vi.fn>;
+  const mockStatSync = fs.statSync as ReturnType<typeof vi.fn>;
+  const mockSelect = inquirer.select as ReturnType<typeof vi.fn>;
+  const mockInput = inquirer.input as ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
