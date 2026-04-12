@@ -4,6 +4,10 @@
   "description": "TypeScript console application for parsing Zwift log files",
   "main": "dist/cli/main.js",
   "type": "module",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "packageManager": "bun@1.3.11",
   "bin": {
     "zwift-log-parser": "bin/zwift-log-parser.js"
   },
@@ -12,7 +16,6 @@
     "bin",
     "README.md"
   ],
-  "preferGlobal": true,
   "workspaces": [
     "core",
     "cli"
@@ -20,12 +23,11 @@
   "scripts": {
     "build": "bun run scripts/build.ts",
     "start": "node dist/cli/main.js",
-    "zwift-log-parser": "bun run cli/src/main.tsx",
     "dev": "bun run cli/src/main.tsx",
     "clean": "rimraf dist",
     "pack": "npm pack --pack-destination dist",
     "lint": "eslint core/src cli/src",
-    "test": "vitest run"
+    "test": "bun test"
   },
   "keywords": [
     "zwift",

@@ -1,26 +1,25 @@
 # Zwift Log Parser
 
-A powerful TypeScript command-line tool for parsing and analyzing Zwift activity log files. Extract session metadata, system information, route/world details, and visualize FPS performance over time.
+A TypeScript command-line tool for parsing and analyzing Zwift activity log files. Built with [Bun](https://bun.sh) and [React Ink](https://github.com/vadimdemedes/ink).
 
 ## Features
 
-- 📊 **FPS Analysis** - Visualize frame rate performance with ASCII graphs and statistics
-- 🗺️ **Route Tracking** - Identify routes/activities with duration, distance, and elevation data
-- 🌍 **World Sessions** - Track world changes and activity segments
-- 💻 **System Information** - Extract GPU, CPU, RAM, resolution, and graphics settings
-- 🎮 **Session Metadata** - View game version, launcher version, device info, and timestamps
-- 🎨 **Color-Coded Output** - Easy-to-read console output with syntax highlighting
-- 📤 **JSON Export** - Output data as JSON for further processing
-- 🔧 **Flexible Options** - Enable/disable specific analysis sections as needed
-- 📁 **Interactive File Picker** - Browse and select log files if no path provided
+- 📊 **FPS Analysis** — Visualize frame rate performance with ASCII graphs and statistics
+- 🗺️ **Route Tracking** — Identify routes/activities with duration, distance, and elevation data
+- 🌍 **World Sessions** — Track world changes and activity segments
+- 💻 **System Information** — Extract GPU, CPU, RAM, resolution, and graphics settings
+- 🎮 **Session Metadata** — View game version, launcher version, device info, and timestamps
+- 📤 **JSON Export** — Output data as JSON for further processing
+- 🔧 **Flexible Options** — Enable/disable specific analysis sections as needed
+- 📁 **Interactive File Picker** — Browse and select log files if no path is provided
 
 ## Installation
 
-### From npm (once published)
+### From npm
 
 ```bash
 npm install -g zwift-log-parser
-zwift-log-parser /path/to/your/logfile.log
+zwift-log-parser /path/to/your/Log.txt
 ```
 
 ### Local Development
@@ -28,10 +27,10 @@ zwift-log-parser /path/to/your/logfile.log
 ```bash
 git clone https://github.com/chrisjwalk/zwift-log-parser.git
 cd zwift-log-parser
-npm install
-npm run build
-npm link
-zwift-log-parser /path/to/your/logfile.log
+bun install
+bun run build
+npm link          # makes the zwift-log-parser command available globally
+zwift-log-parser /path/to/your/Log.txt
 ```
 
 ## Usage
@@ -42,7 +41,7 @@ zwift-log-parser /path/to/your/logfile.log
 zwift-log-parser /path/to/Log.txt
 ```
 
-If no file path is provided, an interactive file picker will appear:
+If no file path is provided, an interactive file picker will launch:
 
 ```bash
 zwift-log-parser
@@ -50,19 +49,19 @@ zwift-log-parser
 
 ### Command-Line Options
 
-```bash
+```
 zwift-log-parser [logfile] [options]
 
 Arguments:
-  logfile                 Path to Zwift log file to parse
+  logfile            Path to Zwift log file to parse
 
 Options:
-  -V, --version          Output the version number
-  --no-fps               Skip FPS analysis and graphs
-  --no-routes            Skip route/activity information
-  --no-metadata          Skip session and system metadata
-  --json                 Output results as JSON instead of formatted text
-  -h, --help             Display help information
+  -V, --version      Output the version number
+  --no-fps           Skip FPS analysis and graphs
+  --no-routes        Skip route/activity information
+  --no-metadata      Skip session and system metadata
+  --json             Output results as JSON instead of formatted display
+  -h, --help         Display help information
 ```
 
 ### Examples
@@ -71,187 +70,163 @@ Options:
 # Analyze everything (default)
 zwift-log-parser ~/Documents/Zwift/Logs/Log.txt
 
-# Only show routes and metadata, skip FPS
+# Routes and metadata only, no FPS graph
 zwift-log-parser ~/Documents/Zwift/Logs/Log.txt --no-fps
 
 # Export to JSON for further processing
 zwift-log-parser ~/Documents/Zwift/Logs/Log.txt --json > output.json
 
-# Only show FPS analysis
+# FPS analysis only
 zwift-log-parser ~/Documents/Zwift/Logs/Log.txt --no-routes --no-metadata
 ```
 
 ## Sample Output
 
-### Session Information
 ```
-═══════════════════════════════════════════════════
-  Session Information
-═══════════════════════════════════════════════════
-🕐 Log Time:        20:34:51 2024-10-27
-🎮 Game Version:    1.71.0 (138908)
-📱 Device:          Windows (x64)
-🚀 Launcher:        2.4.1 (48)
-💻 System Configuration
-═══════════════════════════════════════════════════
-```
+🚴 Zwift Log Parser v0.0.1
 
-### Route/Activity Information
-```
-═══════════════════════════════════════════════════
-  Routes & Activities
-═══════════════════════════════════════════════════
-🌍 Watopia
-  📍 Volcano Circuit (2 laps) — 23:45 (14.2 km, 168 m)
-```
+Session Information
+  Log Date/Time:  21:09:07 2026-01-08
+  Game Version:   1.104.4(157262) rc/1.104.4
+  Device:         PC
 
-### FPS Graph
-```
-═══════════════════════════════════════════════════
-  FPS Analysis (1,425 samples)
-═══════════════════════════════════════════════════
-   60.00 ┤  ╭───╮  ╭──╮     ╭─╮
-   55.00 ┤──╯   ╰──╯  ╰─────╯ ╰───
-   50.00 ┤
-   45.00 ┤
-   40.00 ┤
-         └─────────────────────────
-  Average: 57.3 fps | Min: 45.2 fps | Max: 60.0 fps
+System Information
+  GPU:            NVIDIA GeForce RTX 5060/PCIe/SSE2
+  Driver:         4.6.0 NVIDIA 591.74
+  CPU:            12th Gen Intel(R) Core(TM) i5-12600KF
+  RAM:            64GB
+  Resolution:     1920x1080
+  Graphics:       ultra
+
+Worlds
+  Watopia
+  • Triple Flat Loops
+  • The Big Ring
+
+FPS Analysis
+
+  📍 Watopia
+
+     126.00 ┤
+     121.33 ┤  ╭───╮                     ╭──────╮
+     116.67 ┼──╯   │        ╭╮           │      ╰╮
+     ...
+
+  Time: 1h 48m 52s | Average: 99.76 | Min: 61.73 | Max: 120.97
 ```
 
 ## Development
 
 ### Project Structure
 
-This is an Nx monorepo with two projects:
+This is a Bun workspace monorepo with two packages:
 
 ```
-core/                           # Parser library (@zwift-log-parser/core)
+core/                       # Parser library (@zwift-log-parser/core)
 ├── src/
-│   ├── index.ts               # Library entry point
+│   ├── index.ts            # Library entry point
 │   └── lib/
-│       ├── parser.ts          # ZwiftLogParser class
-│       └── file-picker.ts     # Interactive file picker
-└── project.json               # Nx project configuration
+│       ├── parser.ts       # ZwiftLogParser class
+│       ├── file-picker.ts  # Interactive file picker
+│       └── __fixtures__/   # Test data (real log files)
+└── package.json
 
-cli/                            # CLI application
+cli/                        # CLI application
 ├── src/
-│   └── main.ts                # CLI entry point with Commander.js
-└── project.json               # Nx project configuration
+│   ├── main.tsx            # Entry point — argument parsing
+│   └── App.tsx             # React Ink UI component
+└── package.json
+
+scripts/
+└── build.ts                # Bun build script (bundles CLI via esbuild)
 
 bin/
-└── zwift-log-parser.js        # Global CLI wrapper
+└── zwift-log-parser.js     # npm bin wrapper
 ```
 
 ### Available Commands
 
 ```bash
-npm install               # Install dependencies
-npm run build            # Build all projects (core + cli)
-npm start                # Run the built CLI application
-npm run dev              # Watch mode - rebuilds on changes
-npm run zwift-log-parser # Run CLI without building (uses tsx)
-npm test                 # Run all tests with Vitest
-npm run lint             # Lint all projects with ESLint
-npm run clean            # Remove build artifacts
-npm run pack             # Create npm package tarball
-```
-
-### Running Specific Nx Tasks
-
-```bash
-npx nx run core:build    # Build core library only
-npx nx run cli:build     # Build CLI only
-npx nx run core:test     # Test core library
-npx nx run cli:test      # Test CLI
-npx nx run core:lint     # Lint core library
-npx nx run cli:lint      # Lint CLI
-npx nx graph             # View project dependency graph
+bun install              # Install dependencies
+bun run build            # Build CLI bundle to dist/
+bun run dev              # Run CLI directly with Bun (no build needed)
+bun start                # Run the built CLI from dist/
+bun test                 # Run all tests
+bun lint                 # Lint all source files with ESLint
+bun run clean            # Remove build artifacts
+bun run pack             # Create npm tarball in dist/
 ```
 
 ### Development Workflow
 
 ```bash
 # 1. Install dependencies
-npm install
+bun install
 
-# 2. Run without building (fastest for development)
-npm run zwift-log-parser -- /path/to/logfile.log
+# 2. Run directly without building (fastest iteration)
+bun run dev /path/to/Log.txt
 
 # 3. Build for production
-npm run build
+bun run build
 
-# 4. Test the built version
-npm start -- /path/to/logfile.log
+# 4. Test the built bundle
+bun start /path/to/Log.txt
 
 # 5. Run tests
-npm test
+bun test
 
-# 6. Lint code
-npm run lint
+# 6. Lint
+bun lint
+```
+
+### Publishing to npm
+
+```bash
+# Bump version, build, and publish
+npm version patch
+bun run build
+npm publish --access public
+```
+
+To test the package locally before publishing:
+
+```bash
+bun run pack
+npm install -g dist/zwift-log-parser-<version>.tgz
 ```
 
 ## Technology Stack
 
+- **Runtime**: [Bun](https://bun.sh)
 - **Language**: TypeScript 5.9
-- **Build System**: Nx 22.3.3 (monorepo orchestration)
-- **Runtime**: Node.js (ESM modules)
-- **Bundler**: esbuild (CLI), tsc (library)
-- **Testing**: Vitest 4.0
-- **Linting**: ESLint 9.8
-- **CLI Framework**: Commander.js 14.0
-- **UI Libraries**: 
-  - chalk 5.3 (colored output)
-  - asciichart 1.5 (FPS graphs)
-  - @inquirer/prompts 8.2 (file picker)
+- **UI**: [React Ink](https://github.com/vadimdemedes/ink) (terminal UI)
+- **Bundler**: esbuild (via Bun build API)
+- **CLI Arg Parsing**: Commander.js
+- **FPS Graphs**: asciichart
+- **File Picker**: @inquirer/prompts
+- **Testing**: Vitest
+- **Linting**: ESLint 9 + typescript-eslint
 
 ## Architecture
 
 ### Core Library (`@zwift-log-parser/core`)
 
-The core library provides:
-- `ZwiftLogParser` class - Main parser with methods for extracting metadata, FPS data, routes, and worlds
-- `pickFile()` function - Interactive file picker for selecting log files
-- TypeScript types and interfaces for all parsed data structures
+Provides the `ZwiftLogParser` class and `pickFile()` utility:
+
+- `parseMetadata(content)` — session and system info
+- `parseRouteSessions(content)` — routes and world sessions with timing
+- `parseFPSLines(content)` — raw FPS sample array
+- `parseFpsPerWorld(content)` — FPS data grouped by world, with timestamps
+- `calculateFpsStats(fps)` — average, min, max statistics
+- `downsampleData(data, width)` — reduce data points for graph rendering
 
 ### CLI Application
 
-The CLI application:
-- Uses Commander.js for argument parsing and help generation
-- Provides formatted, color-coded console output
-- Supports JSON export for programmatic use
-- Imports and uses the core library for all parsing logic
+Built with React Ink — the terminal output is a rendered React component tree. Commander.js handles argument and option parsing before React renders.
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
-
-## License
-
-MIT
-- **Type Checking**: Strict mode enabled
-
-## Features
-
-- Parse Zwift activity log files
-- Extract and analyze activity data
-- Console-based interface
-
-## Publishing
-
-When you're ready to publish to the npm registry (ensure the package name is unique):
-
-```bash
-# bump version, build, and publish
-npm version patch
-npm publish --access public
-```
-
-If you want to test the package locally before publishing, use `npm pack` and then install via `npm install ./zwift-log-parser-<version>.tgz` in a temporary project (no global permissions required).
-
-## Contributing
-
-Feel free to extend the parser with additional features and log format support.
 
 ## License
 
