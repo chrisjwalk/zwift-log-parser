@@ -188,7 +188,7 @@ export class ZwiftLogParser {
     const worldLoadRegex =
       /GameLoadLevel: Creating New Activity \{worldId: (\d+)\}/g;
     const saveActivityWorldRegex =
-      /SaveActivity calling[^\n]*with \{name: Zwift - ([^,\n]+)/g;
+      /SaveActivity calling[^{\n]*with \{name: Zwift - ([^,\n]+)/g;
 
     const worldLoads: Array<{ index: number; worldId: number }> = [];
     let match;
@@ -209,7 +209,7 @@ export class ZwiftLogParser {
       );
       if (nextSaveActivity) {
         // Extract just the world name (last part after "in")
-        const worldMatch = nextSaveActivity.worldName.match(/in\s+([^\n]+)$/);
+        const worldMatch = nextSaveActivity.worldName.match(/in\s+(\S[^\n]*)$/);
         if (worldMatch) {
           worldIdMap.set(worldLoad.worldId, worldMatch[1].trim());
         } else {
@@ -240,7 +240,7 @@ export class ZwiftLogParser {
 
     // Find activity sessions using event starts and event finishes
     const activityRegex =
-      /\[([\d:]+)\][^\n]*Starting (?:Group Event|Free Ride|Ride)\.[^\n]*/g;
+      /^\[([\d:]+)\][^\n]*Starting (?:Group Event|Free Ride|Ride)\.[^\n]*/gm;
     const activities: Array<{ time: string; index: number; endTime?: string }> =
       [];
 
@@ -249,7 +249,7 @@ export class ZwiftLogParser {
     }
 
     // Find event finish times for group events
-    const eventFinishRegex = /\[([\d:]+)\][^\n]*EVENT FINISHED/g;
+    const eventFinishRegex = /^\[([\d:]+)\][^\n]*EVENT FINISHED/gm;
     const eventFinishes: Array<{ time: string; index: number }> = [];
     while ((match = eventFinishRegex.exec(content)) !== null) {
       eventFinishes.push({ time: match[1], index: match.index });
@@ -460,7 +460,7 @@ export class ZwiftLogParser {
     const worldLoadRegex =
       /GameLoadLevel: Creating New Activity \{worldId: (\d+)\}/g;
     const saveActivityRegex =
-      /SaveActivity calling[^\n]*with \{name: Zwift - ([^,\n]+)/g;
+      /SaveActivity calling[^{\n]*with \{name: Zwift - ([^,\n]+)/g;
 
     const worldLoads: Array<{ index: number; worldId: number }> = [];
     let match;
@@ -476,7 +476,7 @@ export class ZwiftLogParser {
     for (const worldLoad of worldLoads) {
       const next = saveActivities.find((sa) => sa.index > worldLoad.index);
       if (next) {
-        const inMatch = next.worldName.match(/in\s+([^\n]+)$/);
+        const inMatch = next.worldName.match(/in\s+(\S[^\n]*)$/);
         worldIdMap.set(
           worldLoad.worldId,
           inMatch ? inMatch[1].trim() : next.worldName
@@ -535,7 +535,7 @@ export class ZwiftLogParser {
   parseWorlds(content: string, routes: RouteSession[]): WorldSession[] {
     // Find all SaveActivity messages - these contain the complete activity info
     const saveActivityRegex =
-      /\[[\d:]+\][^\n]*SaveActivity calling[^\n]*with \{name: Zwift - ([^\n,]+)/g;
+      /^\[[\d:]+\][^\n]*SaveActivity calling[^{\n]*with \{name: Zwift - ([^\n,]+)/gm;
     const worldActivities = new Map<
       string,
       { activityNames: string[]; firstIndex: number }
