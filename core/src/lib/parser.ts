@@ -188,7 +188,7 @@ export class ZwiftLogParser {
     const worldLoadRegex =
       /GameLoadLevel: Creating New Activity \{worldId: (\d+)\}/g;
     const saveActivityWorldRegex =
-      /SaveActivity calling[^{\n]*\{name: Zwift - ([^,\n]+)/g;
+      /SaveActivity calling [^ {\n]+ with \{name: Zwift - ([^,\n]+)/g;
 
     const worldLoads: Array<{ index: number; worldId: number }> = [];
     let match;
@@ -459,7 +459,7 @@ export class ZwiftLogParser {
     const worldLoadRegex =
       /GameLoadLevel: Creating New Activity \{worldId: (\d+)\}/g;
     const saveActivityRegex =
-      /SaveActivity calling[^{\n]*\{name: Zwift - ([^,\n]+)/g;
+      /SaveActivity calling [^ {\n]+ with \{name: Zwift - ([^,\n]+)/g;
 
     const worldLoads: Array<{ index: number; worldId: number }> = [];
     let match;
@@ -534,7 +534,7 @@ export class ZwiftLogParser {
   parseWorlds(content: string, routes: RouteSession[]): WorldSession[] {
     // Find all SaveActivity messages - these contain the complete activity info
     const saveActivityRegex =
-      /SaveActivity calling[^{\n]*\{name: Zwift - ([^\n,]+)/g;
+      /SaveActivity calling [^ {\n]+ with \{name: Zwift - ([^\n,]+)/g;
     const worldActivities = new Map<
       string,
       { activityNames: string[]; firstIndex: number }
