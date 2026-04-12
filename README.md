@@ -134,7 +134,13 @@ core/                       # Parser library (@zwift-log-parser/core)
 cli/                        # CLI application
 ├── src/
 │   ├── main.tsx            # Entry point — argument parsing
-│   └── App.tsx             # React Ink UI component
+│   ├── App.tsx             # Root React Ink component
+│   └── components/         # Individual UI panel components
+│       ├── Banner.tsx
+│       ├── MetadataPanel.tsx
+│       ├── WorldsPanel.tsx
+│       ├── FpsPanel.tsx
+│       └── Section.tsx
 └── package.json
 
 scripts/
@@ -198,14 +204,14 @@ npm install -g dist/zwift-log-parser-<version>.tgz
 ## Technology Stack
 
 - **Runtime**: [Bun](https://bun.sh)
-- **Language**: TypeScript 5.9
-- **UI**: [React Ink](https://github.com/vadimdemedes/ink) (terminal UI)
+- **Language**: TypeScript 6.0
+- **UI**: [React Ink](https://github.com/vadimdemedes/ink) 7 (terminal UI, React 19)
 - **Bundler**: esbuild (via Bun build API)
 - **CLI Arg Parsing**: Commander.js
 - **FPS Graphs**: asciichart
 - **File Picker**: @inquirer/prompts
 - **Testing**: Vitest
-- **Linting**: ESLint 9 + typescript-eslint
+- **Linting**: ESLint 10 + typescript-eslint
 
 ## Architecture
 
