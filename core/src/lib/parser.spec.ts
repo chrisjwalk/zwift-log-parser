@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { fileURLToPath } from 'url';
 import { ZwiftLogParser } from './parser';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const FIXTURE_LOG = join(__dirname, '__fixtures__/Log.txt');
 
 describe('ZwiftLogParser', () => {
   const parser = new ZwiftLogParser();
@@ -224,6 +230,53 @@ describe('ZwiftLogParser', () => {
     it('should handle day boundary', () => {
       const result = parser.calculateDuration('23:50:00', '00:10:00');
       expect(result).toBe('20m 0s');
+    });
+  });
+
+  describe('integration — real log file', () => {
+    const content = readFileSync(FIXTURE_LOG, 'utf-8');
+
+    it('parses session metadata correctly', () => {
+      const metadata = parser.parseMetadata(content);
+      expect(metadata.logTime).toBe('21:09:07 2026-01-08');
+      expect(metadata.gameVersion).toBe('1.104.4(157262) rc/1.104.4');
+      expect(metadata.device).toBe('PC');
+      expect(metadata.gpu).toBe('NVIDIA GeForce RTX 5060/PCIe/SSE2');
+      expect(metadata.cpu).toContain('i5-12600KF');
+      expect(metadata.graphicsProfile).toBe('ultra');
+    });
+
+    it('parses worlds and routes correctly', () => {
+      const routes = parser.parseRouteSessions(content);
+      const worlds = parser.parseWorlds(content, routes);
+      expect(worlds).toHaveLength(1);
+      expect(worlds[0].name).toBe('Watopia');
+      const routeNames = worlds[0].activities.map((a) => a.name);
+      expect(routeNames).toContain('Triple Flat Loops');
+      expect(routeNames).toContain('The Big Ring');
+    });
+
+    it('groups all FPS entries under Watopia', () => {
+      const result = parser.parseFpsPerWorld(content);
+      expect(result.size).toBe(1);
+      expect(result.has('Watopia')).toBe(true);
+    });
+
+    it('produces correct FPS statistics for Watopia', () => {
+      const result = parser.parseFpsPerWorld(content);
+      const data = result.get('Watopia')!;
+      const stats = parser.calculateFpsStats(data.fps);
+      expect(stats.avg).toBeGreaterThan(95);
+      expect(stats.avg).toBeLessThan(110);
+      expect(stats.max).toBeCloseTo(120.97, 1);
+      expect(stats.min).toBeLessThan(30);
+    });
+
+    it('records correct session start and end times for Watopia FPS', () => {
+      const result = parser.parseFpsPerWorld(content);
+      const data = result.get('Watopia')!;
+      expect(data.startTime).toBe('21:09:55');
+      expect(data.endTime).toBe('23:02:41');
     });
   });
 });
