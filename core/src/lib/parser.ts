@@ -522,9 +522,11 @@ export class ZwiftLogParser {
       if (!result.has(worldName)) {
         result.set(worldName, { fps: [], startTime: timestamp, endTime: timestamp });
       }
-      const entry = result.get(worldName)!;
-      entry.fps.push(fps);
-      entry.endTime = timestamp;
+      const entry = result.get(worldName);
+      if (entry) {
+        entry.fps.push(fps);
+        entry.endTime = timestamp;
+      }
     }
 
     return result;

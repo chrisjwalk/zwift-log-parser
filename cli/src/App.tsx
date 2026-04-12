@@ -51,7 +51,8 @@ export function App({ logfile, options, version }: AppProps) {
     );
   }
 
-  const { metadata, fps: entries, routes } = content!;
+  if (!content) return null;
+  const { metadata, fps: entries, routes } = content;
 
   return (
     <Box flexDirection="column" paddingBottom={1}>
