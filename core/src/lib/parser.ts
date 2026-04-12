@@ -448,6 +448,88 @@ export class ZwiftLogParser {
     return { avg, min, max };
   }
 
+  /**
+   * Groups FPS entries by world name. Returns a map of world name → FPS data.
+   * Uses the same world-name extraction as parseWorlds so the keys are consistent.
+   */
+  parseFpsPerWorld(
+    content: string
+  ): Map<string, { fps: number[]; startTime: string; endTime: string }> {
+    // Build worldId → world name map (same logic as parseRouteSessions)
+    const worldIdMap = new Map<number, string>();
+    const worldLoadRegex =
+      /GameLoadLevel: Creating New Activity \{worldId: (\d+)\}/g;
+    const saveActivityRegex =
+      /SaveActivity calling.*with \{name: Zwift - ([^,\n]+)/g;
+
+    const worldLoads: Array<{ index: number; worldId: number }> = [];
+    let match;
+    while ((match = worldLoadRegex.exec(content)) !== null) {
+      worldLoads.push({ index: match.index, worldId: parseInt(match[1], 10) });
+    }
+
+    const saveActivities: Array<{ index: number; worldName: string }> = [];
+    while ((match = saveActivityRegex.exec(content)) !== null) {
+      saveActivities.push({ index: match.index, worldName: match[1].trim() });
+    }
+
+    for (const worldLoad of worldLoads) {
+      const next = saveActivities.find((sa) => sa.index > worldLoad.index);
+      if (next) {
+        const inMatch = next.worldName.match(/in\s+(.+)$/);
+        worldIdMap.set(
+          worldLoad.worldId,
+          inMatch ? inMatch[1].trim() : next.worldName
+        );
+      }
+    }
+
+    // Track worldId changes in file order
+    const worldIdChanges: Array<{ index: number; worldId: number }> = [];
+    worldLoadRegex.lastIndex = 0;
+    while ((match = worldLoadRegex.exec(content)) !== null) {
+      worldIdChanges.push({
+        index: match.index,
+        worldId: parseInt(match[1], 10),
+      });
+    }
+
+    // Find which world is active at a given character index
+    const getWorldAtIndex = (index: number): string | undefined => {
+      for (let i = worldIdChanges.length - 1; i >= 0; i--) {
+        if (worldIdChanges[i].index <= index) {
+          return worldIdMap.get(worldIdChanges[i].worldId);
+        }
+      }
+      // Before first world load — fall back to first known world if any
+      if (worldIdChanges.length > 0) {
+        return worldIdMap.get(worldIdChanges[0].worldId);
+      }
+      return undefined;
+    };
+
+    const result = new Map<
+      string,
+      { fps: number[]; startTime: string; endTime: string }
+    >();
+    const fpsRegex = /\[([\d:.]+)\] FPS ([\d.]+)/g;
+    while ((match = fpsRegex.exec(content)) !== null) {
+      const worldName = getWorldAtIndex(match.index);
+      if (!worldName) continue;
+
+      const fps = parseFloat(match[2]);
+      const timestamp = match[1];
+      if (!result.has(worldName)) {
+        result.set(worldName, { fps: [], startTime: timestamp, endTime: timestamp });
+      }
+      const entry = result.get(worldName)!;
+      entry.fps.push(fps);
+      entry.endTime = timestamp;
+    }
+
+    return result;
+  }
+
   parseWorlds(content: string, routes: RouteSession[]): WorldSession[] {
     // Find all SaveActivity messages - these contain the complete activity info
     const saveActivityRegex =

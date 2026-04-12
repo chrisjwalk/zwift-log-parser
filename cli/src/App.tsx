@@ -18,62 +18,6 @@ interface AppProps {
   version: string;
 }
 
-function buildWorldFpsMap(
-  parser: ZwiftLogParser,
-  logfile: string,
-): Map<string, WorldFpsData> {
-  const content = parser.readFile(logfile);
-  const worldFpsMap = new Map<string, WorldFpsData>();
-
-  // Collect worldId changes in log order
-  const worldIdChanges: Array<{ index: number; worldId: number }> = [];
-  const worldLoadRegex = /GameLoadLevel: Creating New Activity \{worldId: (\d+)\}/g;
-  let match: RegExpExecArray | null;
-  while ((match = worldLoadRegex.exec(content)) !== null) {
-    worldIdChanges.push({ index: match.index, worldId: parseInt(match[1], 10) });
-  }
-
-  // Map worldId → world name via SaveActivity lines
-  const worldIdMap = new Map<number, string>();
-  const saveActivityRegex = /Zwift - ([^\n]+)/g;
-  while ((match = saveActivityRegex.exec(content)) !== null) {
-    const worldName = match[1].trim();
-    const idx = match.index;
-    for (let i = worldIdChanges.length - 1; i >= 0; i--) {
-      if (worldIdChanges[i].index < idx) {
-        worldIdMap.set(worldIdChanges[i].worldId, worldName);
-        break;
-      }
-    }
-  }
-
-  const getWorldAtIndex = (index: number): string | undefined => {
-    for (let i = worldIdChanges.length - 1; i >= 0; i--) {
-      if (worldIdChanges[i].index <= index) return worldIdMap.get(worldIdChanges[i].worldId);
-    }
-    return undefined;
-  };
-
-  // Walk FPS entries and assign each to a world
-  const fpsRegex = /\[([\d:.]+)\] FPS ([\d.]+)/g;
-  while ((match = fpsRegex.exec(content)) !== null) {
-    const worldName = getWorldAtIndex(match.index);
-    if (!worldName) continue;
-
-    const fps = parseFloat(match[2]);
-    const timestamp = match[1];
-
-    if (!worldFpsMap.has(worldName)) {
-      worldFpsMap.set(worldName, { fps: [], startTime: timestamp, endTime: timestamp });
-    }
-    const entry = worldFpsMap.get(worldName)!;
-    entry.fps.push(fps);
-    entry.endTime = timestamp;
-  }
-
-  return worldFpsMap;
-}
-
 export function App({ logfile, options, version }: AppProps) {
   const { exit } = useApp();
 
@@ -85,8 +29,9 @@ export function App({ logfile, options, version }: AppProps) {
 
   try {
     content = parser.parseFile(logfile);
-    worlds = parser.parseWorlds(parser.readFile(logfile), content.routes);
-    if (options.fps) worldFpsMap = buildWorldFpsMap(parser, logfile);
+    const rawContent = parser.readFile(logfile);
+    worlds = parser.parseWorlds(rawContent, content.routes);
+    if (options.fps) worldFpsMap = parser.parseFpsPerWorld(rawContent);
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
