@@ -1,0 +1,9 @@
+{
+  "name": "@zwift-log-parser/cli",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@zwift-log-parser/core": "workspace:*"
+  }
+}
