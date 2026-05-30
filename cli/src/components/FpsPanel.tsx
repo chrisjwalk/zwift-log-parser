@@ -61,9 +61,15 @@ export function FpsPanel({ entries, worlds, worldFpsMap, parser }: FpsPanelProps
     max: Math.ceil(fpsStats.max) + 5,
   });
 
+  // Build ordered union of world names: worlds first, then any worldFpsMap keys not already present
+  const worldNames = [
+    ...worlds.map((w) => w.name),
+    ...[...worldFpsMap.keys()].filter((k) => !worlds.some((w) => w.name === k)),
+  ];
+
   return (
     <Box flexDirection="column">
-      {worlds.length > 1 && (
+      {worldNames.length > 1 && (
         <Box flexDirection="column" marginBottom={1}>
           <Section title="Overall FPS Over Time" color="cyan" />
           <Text color="cyan">{overallChart}</Text>
@@ -79,13 +85,13 @@ export function FpsPanel({ entries, worlds, worldFpsMap, parser }: FpsPanelProps
         <Section title="FPS Analysis" color="blue" />
       </Box>
 
-      {worlds.map((world) => {
-        const data = worldFpsMap.get(world.name);
+      {worldNames.map((worldName) => {
+        const data = worldFpsMap.get(worldName);
 
         if (!data || data.fps.length === 0) {
           return (
-            <Box key={world.name} marginTop={1} paddingLeft={2}>
-              <Text color="yellow">{world.name} — No FPS data available</Text>
+            <Box key={worldName} marginTop={1} paddingLeft={2}>
+              <Text color="yellow">{worldName} — No FPS data available</Text>
             </Box>
           );
         }
@@ -99,9 +105,9 @@ export function FpsPanel({ entries, worlds, worldFpsMap, parser }: FpsPanelProps
         const duration = parser.calculateDuration(data.startTime, data.endTime);
 
         return (
-          <Box key={world.name} flexDirection="column" marginTop={1}>
+          <Box key={worldName} flexDirection="column" marginTop={1}>
             <Text color="blue" bold>
-              {'  '}📍 {world.name}
+              {'  '}📍 {worldName}
             </Text>
             <Box marginTop={1}>
               <Text color="blue">{chart}</Text>
