@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import type { LogMetadata } from '@zwift-log-parser/core';
+import type { LogMetadata, NetworkStats } from '@zwift-log-parser/core';
 import { Section } from './Section.js';
 
 interface MetaRowProps {
@@ -20,12 +20,29 @@ function MetaRow({ label, value, valueColor = 'cyan' }: MetaRowProps) {
   );
 }
 
+interface NetworkRowProps {
+  label: string;
+  value: number;
+}
+
+function NetworkRow({ label, value }: NetworkRowProps) {
+  const color = value === 0 ? 'green' : 'red';
+  return (
+    <Text>
+      {'  '}
+      {label.padEnd(16)}
+      <Text color={color}>{String(value)}</Text>
+    </Text>
+  );
+}
+
 interface MetadataPanelProps {
   metadata: LogMetadata;
   duration?: string;
+  networkStats?: NetworkStats;
 }
 
-export function MetadataPanel({ metadata, duration }: MetadataPanelProps) {
+export function MetadataPanel({ metadata, duration, networkStats }: MetadataPanelProps) {
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Section title="Session Information" color="cyan" />
@@ -46,6 +63,17 @@ export function MetadataPanel({ metadata, duration }: MetadataPanelProps) {
       <MetaRow label="Resolution:" value={metadata.resolution} valueColor="yellow" />
       <MetaRow label="Shadow Res:" value={metadata.shadowResolution} valueColor="yellow" />
       <MetaRow label="Graphics:" value={metadata.graphicsProfile} valueColor="yellow" />
+
+      {networkStats !== undefined && (
+        <Box flexDirection="column">
+          <Box marginTop={1}>
+            <Section title="Network" color="blue" />
+          </Box>
+          <NetworkRow label="TCP Disconnects:" value={networkStats.tcpDisconnects} />
+          <NetworkRow label="UDP Rx Errors:" value={networkStats.udpRxErrors} />
+          <NetworkRow label="UDP Tx Errors:" value={networkStats.udpTxErrors} />
+        </Box>
+      )}
     </Box>
   );
 }

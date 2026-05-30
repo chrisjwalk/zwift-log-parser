@@ -70,8 +70,11 @@ const main = async (): Promise<void> => {
   // JSON output — no Ink needed
   if (options.json) {
     const parser = new ZwiftLogParser();
+    const rawContent = parser.readFile(logfile);
     const { metadata, fps: entries, routes } = parser.parseFile(logfile);
-    const worlds = parser.parseWorlds(parser.readFile(logfile), routes);
+    const worlds = parser.parseWorlds(rawContent, routes);
+    const devices = parser.parseDevices(rawContent);
+    const networkStats = parser.parseNetworkStats(rawContent);
 
     const processedRoutes = routes.map(({ distanceCm: _dc, elevationCm: _ec, ...rest }) => ({
       ...rest,
@@ -94,6 +97,8 @@ const main = async (): Promise<void> => {
       JSON.stringify(
         {
           metadata: options.metadata ? metadata : undefined,
+          devices: devices.length > 0 ? devices : undefined,
+          networkStats,
           routes: options.routes ? processedRoutes : undefined,
           worlds: options.routes ? processedWorlds : undefined,
           fps: options.fps

@@ -305,4 +305,122 @@ describe('ZwiftLogParser', () => {
       expect(data?.endTime).toBe('23:02:41');
     });
   });
+
+  describe('parseDevices', () => {
+    const deviceLine = (name: string, role: string) =>
+      `[10:00:00] INFO LEVEL: [BLE] Device selected for role (device: ${name}, role: ${role})`;
+
+    it('returns empty array when no device lines are present', () => {
+      const result = parser.parseDevices('no devices here');
+      expect(result).toHaveLength(0);
+    });
+
+    it('parses a single device with a single role', () => {
+      const content = deviceLine('Wahoo KICKR B087', 'Power');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Wahoo KICKR B087');
+      expect(result[0].roles).toEqual(['Power']);
+    });
+
+    it('groups multiple roles for the same device', () => {
+      const content = [
+        deviceLine('Wahoo KICKR B087', 'Power'),
+        deviceLine('Wahoo KICKR B087', 'Cadence'),
+        deviceLine('Wahoo KICKR B087', 'Controllable Trainer'),
+      ].join('\n');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].roles).toEqual(['Power', 'Cadence', 'Controllable Trainer']);
+    });
+
+    it('deduplicates repeated role selections for the same device', () => {
+      const content = [
+        deviceLine('Zwift Ride 3A16', 'ZP User Input'),
+        deviceLine('Zwift Ride 3A16', 'ZP User Input'),
+      ].join('\n');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].roles).toEqual(['ZP User Input']);
+    });
+
+    it('skips numeric placeholder device names', () => {
+      const content = [
+        deviceLine('[0] ', 'HR'),
+        deviceLine('HR Strap 62300', 'HR'),
+      ].join('\n');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('HR Strap 62300');
+    });
+
+    it('parses multiple distinct devices', () => {
+      const content = [
+        deviceLine('Wahoo KICKR B087', 'Power'),
+        deviceLine('Zwift Ride 3A16', 'ZP User Input'),
+        deviceLine('Zwift Click C865', 'Virtual Shifter Input'),
+      ].join('\n');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(3);
+      expect(result.map((d) => d.name)).toEqual([
+        'Wahoo KICKR B087',
+        'Zwift Ride 3A16',
+        'Zwift Click C865',
+      ]);
+    });
+
+    it('parses devices correctly from fixture log', () => {
+      const rawContent = readFileSync(FIXTURE_LOG, 'utf-8');
+      const result = parser.parseDevices(rawContent);
+      expect(result.length).toBeGreaterThan(0);
+      const kickr = result.find((d) => d.name.includes('Wahoo KICKR'));
+      expect(kickr).toBeDefined();
+      expect(kickr?.roles).toContain('Power');
+      expect(kickr?.roles).toContain('Controllable Trainer');
+    });
+  });
+
+  describe('parseNetworkStats', () => {
+    it('returns zeros when no network lines are present', () => {
+      const result = parser.parseNetworkStats('no network data');
+      expect(result).toEqual({ tcpDisconnects: 0, udpRxErrors: 0, udpTxErrors: 0 });
+    });
+
+    it('counts TCP disconnects', () => {
+      const content = [
+        '[10:00:00] [INFO] TCP disconnected',
+        '[10:05:00] [INFO] TCP disconnected',
+      ].join('\n');
+      const result = parser.parseNetworkStats(content);
+      expect(result.tcpDisconnects).toBe(2);
+    });
+
+    it('sums UDP Rx errors across multiple metrics lines', () => {
+      const content = [
+        '[10:00:00] [INFO] UDP metrics {StC Rx: 100, Rx error: 2, CtS Tx: 10, Tx error: 0}',
+        '[10:01:00] [INFO] UDP metrics {StC Rx: 200, Rx error: 3, CtS Tx: 20, Tx error: 0}',
+      ].join('\n');
+      const result = parser.parseNetworkStats(content);
+      expect(result.udpRxErrors).toBe(5);
+      expect(result.udpTxErrors).toBe(0);
+    });
+
+    it('sums UDP Tx errors across multiple metrics lines', () => {
+      const content = [
+        '[10:00:00] [INFO] UDP metrics {StC Rx: 100, Rx error: 0, CtS Tx: 10, Tx error: 1}',
+        '[10:01:00] [INFO] UDP metrics {StC Rx: 200, Rx error: 0, CtS Tx: 20, Tx error: 4}',
+      ].join('\n');
+      const result = parser.parseNetworkStats(content);
+      expect(result.udpRxErrors).toBe(0);
+      expect(result.udpTxErrors).toBe(5);
+    });
+
+    it('parses network stats correctly from fixture log', () => {
+      const rawContent = readFileSync(FIXTURE_LOG, 'utf-8');
+      const result = parser.parseNetworkStats(rawContent);
+      expect(result.tcpDisconnects).toBe(3);
+      expect(result.udpRxErrors).toBe(0);
+      expect(result.udpTxErrors).toBe(0);
+    });
+  });
 });

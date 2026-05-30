@@ -17,6 +17,17 @@ export type FpsStats = {
   count: number;
 };
 
+export type PairedDevice = {
+  name: string;
+  roles: string[];
+};
+
+export type NetworkStats = {
+  tcpDisconnects: number;
+  udpRxErrors: number;
+  udpTxErrors: number;
+};
+
 export type LogMetadata = {
   logTime?: string;
   gameVersion?: string;
@@ -666,5 +677,42 @@ export class ZwiftLogParser {
     });
 
     return worldSessions;
+  }
+
+  parseDevices(content: string): PairedDevice[] {
+    const deviceMap = new Map<string, Set<string>>();
+    const deviceOrder: string[] = [];
+    const regex =
+      /\] INFO LEVEL: \[BLE\] Device selected for role \(device: (.+?), role: (.+?)\)/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      const name = match[1].trim();
+      const role = match[2].trim();
+      // Skip empty names and numeric placeholders like "[0]"
+      if (!name || /^\[?\d+\]?$/.test(name)) continue;
+      if (!deviceMap.has(name)) {
+        deviceMap.set(name, new Set());
+        deviceOrder.push(name);
+      }
+      deviceMap.get(name)!.add(role);
+    }
+    return deviceOrder.map((name) => ({
+      name,
+      roles: [...deviceMap.get(name)!],
+    }));
+  }
+
+  parseNetworkStats(content: string): NetworkStats {
+    const tcpDisconnects = (content.match(/\[INFO\] TCP disconnected/g) ?? []).length;
+    const udpRegex =
+      /\[INFO\] UDP metrics \{StC Rx: \d+, Rx error: (\d+), CtS Tx: \d+, Tx error: (\d+)\}/g;
+    let udpRxErrors = 0;
+    let udpTxErrors = 0;
+    let match;
+    while ((match = udpRegex.exec(content)) !== null) {
+      udpRxErrors += parseInt(match[1], 10);
+      udpTxErrors += parseInt(match[2], 10);
+    }
+    return { tcpDisconnects, udpRxErrors, udpTxErrors };
   }
 }

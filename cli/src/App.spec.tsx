@@ -21,6 +21,8 @@ describe('App', () => {
       readFile: vi.fn().mockReturnValue('raw log content'),
       parseWorlds: vi.fn().mockReturnValue(defaultWorlds),
       parseFpsPerWorld: vi.fn().mockReturnValue(new Map()),
+      parseDevices: vi.fn().mockReturnValue([]),
+      parseNetworkStats: vi.fn().mockReturnValue({ tcpDisconnects: 0, udpRxErrors: 0, udpTxErrors: 0 }),
       calculateFpsStats: vi.fn().mockReturnValue({ avg: 60, min: 55, max: 65, p1: 55, p95: 65, count: 10 }),
       downsampleData: vi.fn().mockImplementation((data: number[]) => data),
       calculateDuration: vi.fn().mockReturnValue('30m 0s'),
@@ -153,5 +155,37 @@ describe('App', () => {
     );
     expect(mockMethods.parseFile).toHaveBeenCalledWith('/path/to/Log.txt');
     expect(mockMethods.readFile).toHaveBeenCalledWith('/path/to/Log.txt');
+  });
+
+  it('renders DevicesPanel when devices are returned', () => {
+    (mockMethods.parseDevices as ReturnType<typeof vi.fn>).mockReturnValue([
+      { name: 'Wahoo KICKR B087', roles: ['Power', 'Cadence'] },
+    ]);
+    const { frames } = render(
+      <App logfile="fake.log" options={allOptions} version="1.0.0" parserFactory={parserFactory} />,
+    );
+    expect(frames[0]).toContain('Wahoo KICKR B087');
+    expect(frames[0]).toContain('Power, Cadence');
+  });
+
+  it('hides DevicesPanel when no devices are returned', () => {
+    (mockMethods.parseDevices as ReturnType<typeof vi.fn>).mockReturnValue([]);
+    const { frames } = render(
+      <App logfile="fake.log" options={allOptions} version="1.0.0" parserFactory={parserFactory} />,
+    );
+    expect(frames[0]).not.toContain('Devices');
+  });
+
+  it('renders network stats in MetadataPanel', () => {
+    (mockMethods.parseNetworkStats as ReturnType<typeof vi.fn>).mockReturnValue({
+      tcpDisconnects: 2,
+      udpRxErrors: 0,
+      udpTxErrors: 0,
+    });
+    const { frames } = render(
+      <App logfile="fake.log" options={allOptions} version="1.0.0" parserFactory={parserFactory} />,
+    );
+    expect(frames[0]).toContain('Network');
+    expect(frames[0]).toContain('TCP Disconnects:');
   });
 });
