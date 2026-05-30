@@ -55,10 +55,15 @@ export function App({ logfile, options, version, parserFactory = () => new Zwift
   if (!content) return null;
   const { metadata, fps: entries, routes } = content;
 
+  const sessionDuration =
+    entries.length > 0
+      ? parser.calculateDuration(entries[0].timestamp, entries[entries.length - 1].timestamp)
+      : undefined;
+
   return (
     <Box flexDirection="column" paddingBottom={1}>
       <Banner version={version} />
-      {options.metadata && <MetadataPanel metadata={metadata} />}
+      {options.metadata && <MetadataPanel metadata={metadata} duration={sessionDuration} />}
       {options.routes && worlds.length > 0 && <WorldsPanel worlds={worlds} />}
       {options.fps && (
         <FpsPanel

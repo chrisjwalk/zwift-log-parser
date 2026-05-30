@@ -51,7 +51,9 @@ describe('FpsPanel', () => {
     );
     const frame = lastFrame()!;
     expect(frame).toContain('Watopia');
-    expect(frame).toContain('Average');
+    expect(frame).toContain('Avg');
+    expect(frame).toContain('P1');
+    expect(frame).toContain('P95');
     expect(frame).toContain('Min');
     expect(frame).toContain('Max');
     expect(frame).toContain('Time:');

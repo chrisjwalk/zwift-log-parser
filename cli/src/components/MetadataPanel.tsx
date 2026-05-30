@@ -22,13 +22,15 @@ function MetaRow({ label, value, valueColor = 'cyan' }: MetaRowProps) {
 
 interface MetadataPanelProps {
   metadata: LogMetadata;
+  duration?: string;
 }
 
-export function MetadataPanel({ metadata }: MetadataPanelProps) {
+export function MetadataPanel({ metadata, duration }: MetadataPanelProps) {
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Section title="Session Information" color="cyan" />
       <MetaRow label="Log Date/Time:" value={metadata.logTime} />
+      <MetaRow label="Duration:" value={duration} />
       <MetaRow label="Game Version:" value={metadata.gameVersion} />
       <MetaRow label="Device:" value={metadata.device} />
       <MetaRow label="Config:" value={metadata.config} />

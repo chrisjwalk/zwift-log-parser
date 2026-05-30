@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import * as asciichart from 'asciichart';
-import type { FPSEntry, WorldSession, ZwiftLogParser } from '@zwift-log-parser/core';
+import type { FPSEntry, FpsStats, WorldSession, ZwiftLogParser } from '@zwift-log-parser/core';
 import { Section } from './Section.js';
 
 export interface WorldFpsData {
@@ -18,13 +18,11 @@ interface FpsPanelProps {
 }
 
 interface StatsRowProps {
+  stats: FpsStats;
   duration?: string;
-  avg: number;
-  min: number;
-  max: number;
 }
 
-function StatsRow({ duration, avg, min, max }: StatsRowProps) {
+function StatsRow({ stats, duration }: StatsRowProps) {
   return (
     <Text>
       {'  '}
@@ -34,9 +32,12 @@ function StatsRow({ duration, avg, min, max }: StatsRowProps) {
           {' | '}
         </>
       )}
-      Average: <Text color="green">{avg.toFixed(2)}</Text>
-      {' | '}Min: <Text color="red">{min.toFixed(2)}</Text>
-      {' | '}Max: <Text color="green">{max.toFixed(2)}</Text>
+      Min: <Text color="red">{Math.round(stats.min)}</Text>
+      {' | '}P1: <Text color="yellow">{Math.round(stats.p1)}</Text>
+      {' | '}Avg: <Text color="green">{stats.avg.toFixed(1)}</Text>
+      {' | '}P95: <Text color="cyan">{Math.round(stats.p95)}</Text>
+      {' | '}Max: <Text color="green">{Math.round(stats.max)}</Text>
+      {' | '}<Text dimColor>{stats.count} samples</Text>
     </Text>
   );
 }
@@ -77,7 +78,7 @@ export function FpsPanel({ entries, worlds, worldFpsMap, parser }: FpsPanelProps
           <Box marginTop={1}>
             <Section title="Overall FPS Statistics" color="magenta" />
           </Box>
-          <StatsRow avg={fpsStats.avg} min={fpsStats.min} max={fpsStats.max} />
+          <StatsRow stats={fpsStats} />
         </Box>
       )}
 
@@ -113,7 +114,7 @@ export function FpsPanel({ entries, worlds, worldFpsMap, parser }: FpsPanelProps
               <Text color="blue">{chart}</Text>
             </Box>
             <Box marginTop={1} marginBottom={1}>
-              <StatsRow duration={duration} avg={stats.avg} min={stats.min} max={stats.max} />
+              <StatsRow stats={stats} duration={duration} />
             </Box>
           </Box>
         );

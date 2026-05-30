@@ -98,7 +98,6 @@ const main = async (): Promise<void> => {
           worlds: options.routes ? processedWorlds : undefined,
           fps: options.fps
             ? {
-                entries: entries.length,
                 stats: parser.calculateFpsStats(entries.map((e) => e.fps)),
               }
             : undefined,

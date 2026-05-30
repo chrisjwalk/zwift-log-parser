@@ -21,7 +21,7 @@ describe('App', () => {
       readFile: vi.fn().mockReturnValue('raw log content'),
       parseWorlds: vi.fn().mockReturnValue(defaultWorlds),
       parseFpsPerWorld: vi.fn().mockReturnValue(new Map()),
-      calculateFpsStats: vi.fn().mockReturnValue({ avg: 60, min: 55, max: 65 }),
+      calculateFpsStats: vi.fn().mockReturnValue({ avg: 60, min: 55, max: 65, p1: 55, p95: 65, count: 10 }),
       downsampleData: vi.fn().mockImplementation((data: number[]) => data),
       calculateDuration: vi.fn().mockReturnValue('30m 0s'),
     } as unknown as ZwiftLogParser;
@@ -128,6 +128,23 @@ describe('App', () => {
       <App logfile="fake.log" options={{ ...allOptions, routes: false }} version="1.0.0" parserFactory={parserFactory} />,
     );
     expect(mockMethods.parseWorlds).toHaveBeenCalled();
+  });
+
+  it('renders session duration in MetadataPanel when FPS entries exist', () => {
+    (mockMethods.parseFile as ReturnType<typeof vi.fn>).mockReturnValue({
+      metadata: defaultMetadata,
+      fps: [
+        { timestamp: '10:00:00', fps: 60, value1: 0, value2: 0, value3: 0 },
+        { timestamp: '11:37:00', fps: 60, value1: 0, value2: 0, value3: 0 },
+      ],
+      routes: defaultRoutes,
+    });
+    (mockMethods.calculateDuration as ReturnType<typeof vi.fn>).mockReturnValue('1 hr 37 mins');
+    const { frames } = render(
+      <App logfile="fake.log" options={allOptions} version="1.0.0" parserFactory={parserFactory} />,
+    );
+    expect(frames[0]).toContain('Duration:');
+    expect(frames[0]).toContain('1 hr 37 mins');
   });
 
   it('calls parseFile and readFile with the provided logfile path', () => {

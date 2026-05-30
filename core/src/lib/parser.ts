@@ -8,6 +8,15 @@ export type FPSEntry = {
   value3: number;
 };
 
+export type FpsStats = {
+  avg: number;
+  min: number;
+  max: number;
+  p1: number;
+  p95: number;
+  count: number;
+};
+
 export type LogMetadata = {
   logTime?: string;
   gameVersion?: string;
@@ -433,18 +442,24 @@ export class ZwiftLogParser {
     return tsSeconds >= startSeconds && tsSeconds <= endSeconds;
   }
 
-  calculateFpsStats(fpsValues: number[]): {
-    avg: number;
-    min: number;
-    max: number;
-  } {
+  calculateFpsStats(fpsValues: number[]): FpsStats {
     if (fpsValues.length === 0) {
-      return { avg: 0, min: 0, max: 0 };
+      return { avg: 0, min: 0, max: 0, p1: 0, p95: 0, count: 0 };
     }
+    const sorted = [...fpsValues].sort((a, b) => a - b);
+    const percentile = (p: number) => {
+      const idx = Math.max(0, Math.ceil((sorted.length * p) / 100) - 1);
+      return sorted[idx];
+    };
     const avg = fpsValues.reduce((a, b) => a + b, 0) / fpsValues.length;
-    const min = Math.min(...fpsValues);
-    const max = Math.max(...fpsValues);
-    return { avg, min, max };
+    return {
+      avg,
+      min: sorted[0],
+      max: sorted[sorted.length - 1],
+      p1: percentile(1),
+      p95: percentile(95),
+      count: fpsValues.length,
+    };
   }
 
   /**

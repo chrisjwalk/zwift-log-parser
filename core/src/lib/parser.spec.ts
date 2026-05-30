@@ -73,12 +73,15 @@ describe('ZwiftLogParser', () => {
   });
 
   describe('calculateFpsStats', () => {
-    it('should calculate average, min, and max', () => {
+    it('should calculate average, min, max, p1, p95, and count', () => {
       const fpsValues = [50, 60, 70];
       const stats = parser.calculateFpsStats(fpsValues);
       expect(stats.avg).toBe(60);
       expect(stats.min).toBe(50);
       expect(stats.max).toBe(70);
+      expect(stats.p1).toBe(50);
+      expect(stats.p95).toBe(70);
+      expect(stats.count).toBe(3);
     });
 
     it('should return zeros for empty array', () => {
@@ -86,6 +89,26 @@ describe('ZwiftLogParser', () => {
       expect(stats.avg).toBe(0);
       expect(stats.min).toBe(0);
       expect(stats.max).toBe(0);
+      expect(stats.p1).toBe(0);
+      expect(stats.p95).toBe(0);
+      expect(stats.count).toBe(0);
+    });
+
+    it('should return correct stats for a single element', () => {
+      const stats = parser.calculateFpsStats([75]);
+      expect(stats.min).toBe(75);
+      expect(stats.max).toBe(75);
+      expect(stats.p1).toBe(75);
+      expect(stats.p95).toBe(75);
+      expect(stats.count).toBe(1);
+    });
+
+    it('should reflect count correctly', () => {
+      const values = Array.from({ length: 100 }, (_, i) => i + 1);
+      const stats = parser.calculateFpsStats(values);
+      expect(stats.count).toBe(100);
+      expect(stats.p1).toBe(1);
+      expect(stats.p95).toBe(95);
     });
   });
 

@@ -58,6 +58,19 @@ describe('MetadataPanel', () => {
     expect(frame).not.toContain('GPU:');
   });
 
+  it('renders duration when provided', () => {
+    const { lastFrame } = render(<MetadataPanel metadata={fullMetadata} duration="1 hr 37 mins" />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('Duration:');
+    expect(frame).toContain('1 hr 37 mins');
+  });
+
+  it('omits duration row when not provided', () => {
+    const { lastFrame } = render(<MetadataPanel metadata={fullMetadata} />);
+    const frame = lastFrame()!;
+    expect(frame).not.toContain('Duration:');
+  });
+
   it('renders with completely empty metadata without crashing', () => {
     const { lastFrame } = render(<MetadataPanel metadata={{}} />);
     const frame = lastFrame()!;
