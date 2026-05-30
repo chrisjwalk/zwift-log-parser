@@ -3,6 +3,7 @@ import { Box, Text, useApp } from 'ink';
 import { ZwiftLogParser } from '@zwift-log-parser/core';
 import { Banner } from './components/Banner.js';
 import { MetadataPanel } from './components/MetadataPanel.js';
+import { DevicesPanel } from './components/DevicesPanel.js';
 import { WorldsPanel } from './components/WorldsPanel.js';
 import { FpsPanel, type WorldFpsData } from './components/FpsPanel.js';
 
@@ -16,21 +17,26 @@ interface AppProps {
   logfile: string;
   options: AppOptions;
   version: string;
+  parserFactory?: () => ZwiftLogParser;
 }
 
-export function App({ logfile, options, version }: AppProps) {
+export function App({ logfile, options, version, parserFactory = () => new ZwiftLogParser() }: AppProps) {
   const { exit } = useApp();
 
   let error: string | null = null;
   let content: ReturnType<ZwiftLogParser['parseFile']> | null = null;
   let worlds: ReturnType<ZwiftLogParser['parseWorlds']> = [];
   let worldFpsMap = new Map<string, WorldFpsData>();
-  const parser = new ZwiftLogParser();
+  let devices: ReturnType<ZwiftLogParser['parseDevices']> = [];
+  let networkStats: ReturnType<ZwiftLogParser['parseNetworkStats']> | undefined;
+  const parser = parserFactory();
 
   try {
     content = parser.parseFile(logfile);
     const rawContent = parser.readFile(logfile);
     worlds = parser.parseWorlds(rawContent, content.routes);
+    devices = parser.parseDevices(rawContent);
+    networkStats = parser.parseNetworkStats(rawContent);
     if (options.fps) worldFpsMap = parser.parseFpsPerWorld(rawContent);
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
@@ -54,10 +60,18 @@ export function App({ logfile, options, version }: AppProps) {
   if (!content) return null;
   const { metadata, fps: entries, routes } = content;
 
+  const sessionDuration =
+    entries.length > 0
+      ? parser.calculateDuration(entries[0].timestamp, entries[entries.length - 1].timestamp)
+      : undefined;
+
   return (
     <Box flexDirection="column" paddingBottom={1}>
       <Banner version={version} />
-      {options.metadata && <MetadataPanel metadata={metadata} />}
+      {options.metadata && (
+        <MetadataPanel metadata={metadata} duration={sessionDuration} networkStats={networkStats} />
+      )}
+      {devices.length > 0 && <DevicesPanel devices={devices} />}
       {options.routes && worlds.length > 0 && <WorldsPanel worlds={worlds} />}
       {options.fps && (
         <FpsPanel

@@ -8,6 +8,25 @@ export type FPSEntry = {
   value3: number;
 };
 
+export type FpsStats = {
+  avg: number;
+  min: number;
+  max: number;
+  p1: number;
+  p95: number;
+  count: number;
+};
+
+export type PairedDevice = {
+  name: string;
+  roles: string[];
+};
+
+export type NetworkStats = {
+  tcpDisconnects: number;
+  udpTimeouts: number;
+};
+
 export type LogMetadata = {
   logTime?: string;
   gameVersion?: string;
@@ -73,10 +92,10 @@ export class ZwiftLogParser {
       metadata.launcherVersion = launcherMatch[1].trim();
     }
 
-    // Extract GPU info
+    // Extract GPU info — strip API descriptor suffix (e.g. "/PCIe/SSE2")
     const gpuMatch = content.match(/Graphics Renderer: ([^\n]+)/);
     if (gpuMatch) {
-      metadata.gpu = gpuMatch[1].trim();
+      metadata.gpu = gpuMatch[1].trim().replace(/\/.*$/, '').trim();
     }
 
     // Extract GPU Driver version
@@ -85,10 +104,15 @@ export class ZwiftLogParser {
       metadata.gpuDriver = driverMatch[1].trim();
     }
 
-    // Extract CPU
+    // Extract CPU — strip marketing prefix (e.g. "12th Gen Intel(R) Core(TM) " → "Core i5-12600KF")
     const cpuMatch = content.match(/CPU: ([^\n]+)/);
     if (cpuMatch) {
-      metadata.cpu = cpuMatch[1].trim();
+      let cpu = cpuMatch[1].trim();
+      cpu = cpu.replace(/\((?:R|TM)\)/gi, '');    // remove (R) and (TM)
+      cpu = cpu.replace(/\s+/g, ' ').trim();       // normalize whitespace
+      cpu = cpu.replace(/^\d+\w+\s+Gen\s+/i, ''); // remove "12th Gen "
+      cpu = cpu.replace(/^(Intel|AMD)\s+/i, '');  // remove vendor name
+      metadata.cpu = cpu.trim();
     }
 
     // Extract RAM
@@ -433,18 +457,24 @@ export class ZwiftLogParser {
     return tsSeconds >= startSeconds && tsSeconds <= endSeconds;
   }
 
-  calculateFpsStats(fpsValues: number[]): {
-    avg: number;
-    min: number;
-    max: number;
-  } {
+  calculateFpsStats(fpsValues: number[]): FpsStats {
     if (fpsValues.length === 0) {
-      return { avg: 0, min: 0, max: 0 };
+      return { avg: 0, min: 0, max: 0, p1: 0, p95: 0, count: 0 };
     }
+    const sorted = [...fpsValues].sort((a, b) => a - b);
+    const percentile = (p: number) => {
+      const idx = Math.max(0, Math.ceil((sorted.length * p) / 100) - 1);
+      return sorted[idx];
+    };
     const avg = fpsValues.reduce((a, b) => a + b, 0) / fpsValues.length;
-    const min = Math.min(...fpsValues);
-    const max = Math.max(...fpsValues);
-    return { avg, min, max };
+    return {
+      avg,
+      min: sorted[0],
+      max: sorted[sorted.length - 1],
+      p1: percentile(1),
+      p95: percentile(95),
+      count: fpsValues.length,
+    };
   }
 
   /**
@@ -651,5 +681,34 @@ export class ZwiftLogParser {
     });
 
     return worldSessions;
+  }
+
+  parseDevices(content: string): PairedDevice[] {
+    const deviceMap = new Map<string, Set<string>>();
+    const deviceOrder: string[] = [];
+    const regex =
+      /\] INFO LEVEL: \[BLE\] Device selected for role \(device: (.+?), role: (.+?)\)/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      const name = match[1].trim();
+      const role = match[2].trim();
+      // Skip empty names and numeric placeholders like "[0]"
+      if (!name || /^\[?\d+\]?$/.test(name)) continue;
+      if (!deviceMap.has(name)) {
+        deviceMap.set(name, new Set());
+        deviceOrder.push(name);
+      }
+      deviceMap.get(name)!.add(role);
+    }
+    return deviceOrder.map((name) => ({
+      name,
+      roles: [...deviceMap.get(name)!],
+    }));
+  }
+
+  parseNetworkStats(content: string): NetworkStats {
+    const tcpDisconnects = (content.match(/\[INFO\] TCP disconnected/g) ?? []).length;
+    const udpTimeouts = (content.match(/\[WARN\] UDP connection timeout/g) ?? []).length;
+    return { tcpDisconnects, udpTimeouts };
   }
 }

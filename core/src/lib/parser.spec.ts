@@ -34,6 +34,24 @@ describe('ZwiftLogParser', () => {
       const metadata = parser.parseMetadata(content);
       expect(metadata.gpu).toBe('NVIDIA GeForce RTX 3080');
     });
+
+    it('strips API descriptor suffix from GPU', () => {
+      const content = 'Graphics Renderer: NVIDIA GeForce RTX 5060/PCIe/SSE2';
+      const metadata = parser.parseMetadata(content);
+      expect(metadata.gpu).toBe('NVIDIA GeForce RTX 5060');
+    });
+
+    it('strips generation prefix and annotations from Intel CPU', () => {
+      const content = 'CPU: 12th Gen Intel(R) Core(TM) i5-12600KF';
+      const metadata = parser.parseMetadata(content);
+      expect(metadata.cpu).toBe('Core i5-12600KF');
+    });
+
+    it('leaves plain CPU names unchanged', () => {
+      const content = 'CPU: Ryzen 9 5900X';
+      const metadata = parser.parseMetadata(content);
+      expect(metadata.cpu).toBe('Ryzen 9 5900X');
+    });
   });
 
   describe('parseFPSLines', () => {
@@ -73,12 +91,15 @@ describe('ZwiftLogParser', () => {
   });
 
   describe('calculateFpsStats', () => {
-    it('should calculate average, min, and max', () => {
+    it('should calculate average, min, max, p1, p95, and count', () => {
       const fpsValues = [50, 60, 70];
       const stats = parser.calculateFpsStats(fpsValues);
       expect(stats.avg).toBe(60);
       expect(stats.min).toBe(50);
       expect(stats.max).toBe(70);
+      expect(stats.p1).toBe(50);
+      expect(stats.p95).toBe(70);
+      expect(stats.count).toBe(3);
     });
 
     it('should return zeros for empty array', () => {
@@ -86,6 +107,26 @@ describe('ZwiftLogParser', () => {
       expect(stats.avg).toBe(0);
       expect(stats.min).toBe(0);
       expect(stats.max).toBe(0);
+      expect(stats.p1).toBe(0);
+      expect(stats.p95).toBe(0);
+      expect(stats.count).toBe(0);
+    });
+
+    it('should return correct stats for a single element', () => {
+      const stats = parser.calculateFpsStats([75]);
+      expect(stats.min).toBe(75);
+      expect(stats.max).toBe(75);
+      expect(stats.p1).toBe(75);
+      expect(stats.p95).toBe(75);
+      expect(stats.count).toBe(1);
+    });
+
+    it('should reflect count correctly', () => {
+      const values = Array.from({ length: 100 }, (_, i) => i + 1);
+      const stats = parser.calculateFpsStats(values);
+      expect(stats.count).toBe(100);
+      expect(stats.p1).toBe(1);
+      expect(stats.p95).toBe(95);
     });
   });
 
@@ -242,8 +283,8 @@ describe('ZwiftLogParser', () => {
       expect(metadata.logTime).toBe('21:09:07 2026-01-08');
       expect(metadata.gameVersion).toBe('1.104.4(157262) rc/1.104.4');
       expect(metadata.device).toBe('PC');
-      expect(metadata.gpu).toBe('NVIDIA GeForce RTX 5060/PCIe/SSE2');
-      expect(metadata.cpu).toContain('i5-12600KF');
+      expect(metadata.gpu).toBe('NVIDIA GeForce RTX 5060');
+      expect(metadata.cpu).toBe('Core i5-12600KF');
       expect(metadata.graphicsProfile).toBe('ultra');
     });
 
@@ -280,6 +321,113 @@ describe('ZwiftLogParser', () => {
       expect(data).toBeDefined();
       expect(data?.startTime).toBe('21:09:55');
       expect(data?.endTime).toBe('23:02:41');
+    });
+  });
+
+  describe('parseDevices', () => {
+    const deviceLine = (name: string, role: string) =>
+      `[10:00:00] INFO LEVEL: [BLE] Device selected for role (device: ${name}, role: ${role})`;
+
+    it('returns empty array when no device lines are present', () => {
+      const result = parser.parseDevices('no devices here');
+      expect(result).toHaveLength(0);
+    });
+
+    it('parses a single device with a single role', () => {
+      const content = deviceLine('Wahoo KICKR B087', 'Power');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Wahoo KICKR B087');
+      expect(result[0].roles).toEqual(['Power']);
+    });
+
+    it('groups multiple roles for the same device', () => {
+      const content = [
+        deviceLine('Wahoo KICKR B087', 'Power'),
+        deviceLine('Wahoo KICKR B087', 'Cadence'),
+        deviceLine('Wahoo KICKR B087', 'Controllable Trainer'),
+      ].join('\n');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].roles).toEqual(['Power', 'Cadence', 'Controllable Trainer']);
+    });
+
+    it('deduplicates repeated role selections for the same device', () => {
+      const content = [
+        deviceLine('Zwift Ride 3A16', 'ZP User Input'),
+        deviceLine('Zwift Ride 3A16', 'ZP User Input'),
+      ].join('\n');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].roles).toEqual(['ZP User Input']);
+    });
+
+    it('skips numeric placeholder device names', () => {
+      const content = [
+        deviceLine('[0] ', 'HR'),
+        deviceLine('HR Strap 62300', 'HR'),
+      ].join('\n');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('HR Strap 62300');
+    });
+
+    it('parses multiple distinct devices', () => {
+      const content = [
+        deviceLine('Wahoo KICKR B087', 'Power'),
+        deviceLine('Zwift Ride 3A16', 'ZP User Input'),
+        deviceLine('Zwift Click C865', 'Virtual Shifter Input'),
+      ].join('\n');
+      const result = parser.parseDevices(content);
+      expect(result).toHaveLength(3);
+      expect(result.map((d) => d.name)).toEqual([
+        'Wahoo KICKR B087',
+        'Zwift Ride 3A16',
+        'Zwift Click C865',
+      ]);
+    });
+
+    it('parses devices correctly from fixture log', () => {
+      const rawContent = readFileSync(FIXTURE_LOG, 'utf-8');
+      const result = parser.parseDevices(rawContent);
+      expect(result.length).toBeGreaterThan(0);
+      const kickr = result.find((d) => d.name.includes('Wahoo KICKR'));
+      expect(kickr).toBeDefined();
+      expect(kickr?.roles).toContain('Power');
+      expect(kickr?.roles).toContain('Controllable Trainer');
+    });
+  });
+
+  describe('parseNetworkStats', () => {
+    it('returns zeros when no network lines are present', () => {
+      const result = parser.parseNetworkStats('no network data');
+      expect(result).toEqual({ tcpDisconnects: 0, udpTimeouts: 0 });
+    });
+
+    it('counts TCP disconnects', () => {
+      const content = [
+        '[10:00:00] [INFO] TCP disconnected',
+        '[10:05:00] [INFO] TCP disconnected',
+      ].join('\n');
+      const result = parser.parseNetworkStats(content);
+      expect(result.tcpDisconnects).toBe(2);
+    });
+
+    it('counts UDP connection timeouts', () => {
+      const content = [
+        '[10:00:00] [WARN] UDP connection timeout (1 so far), reconnection attempt 1',
+        '[10:01:00] [WARN] UDP connection timeout (2 so far), reconnection attempt 2',
+        '[10:02:00] [WARN] UDP connection timeout (3 so far), reconnection attempt 3',
+      ].join('\n');
+      const result = parser.parseNetworkStats(content);
+      expect(result.udpTimeouts).toBe(3);
+    });
+
+    it('parses network stats correctly from fixture log', () => {
+      const rawContent = readFileSync(FIXTURE_LOG, 'utf-8');
+      const result = parser.parseNetworkStats(rawContent);
+      expect(result.tcpDisconnects).toBe(3);
+      expect(result.udpTimeouts).toBe(3);
     });
   });
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import * as asciichart from 'asciichart';
-import type { FPSEntry, WorldSession, ZwiftLogParser } from '@zwift-log-parser/core';
+import type { FPSEntry, FpsStats, WorldSession, ZwiftLogParser } from '@zwift-log-parser/core';
 import { Section } from './Section.js';
 
 export interface WorldFpsData {
@@ -18,13 +18,11 @@ interface FpsPanelProps {
 }
 
 interface StatsRowProps {
+  stats: FpsStats;
   duration?: string;
-  avg: number;
-  min: number;
-  max: number;
 }
 
-function StatsRow({ duration, avg, min, max }: StatsRowProps) {
+function StatsRow({ stats, duration }: StatsRowProps) {
   return (
     <Text>
       {'  '}
@@ -34,9 +32,12 @@ function StatsRow({ duration, avg, min, max }: StatsRowProps) {
           {' | '}
         </>
       )}
-      Average: <Text color="green">{avg.toFixed(2)}</Text>
-      {' | '}Min: <Text color="red">{min.toFixed(2)}</Text>
-      {' | '}Max: <Text color="green">{max.toFixed(2)}</Text>
+      Min: <Text color="red">{Math.round(stats.min)}</Text>
+      {' | '}P1: <Text color="yellow">{Math.round(stats.p1)}</Text>
+      {' | '}Avg: <Text color="green">{stats.avg.toFixed(1)}</Text>
+      {' | '}P95: <Text color="cyan">{Math.round(stats.p95)}</Text>
+      {' | '}Max: <Text color="green">{Math.round(stats.max)}</Text>
+      {' | '}<Text dimColor>{stats.count} samples</Text>
     </Text>
   );
 }
@@ -61,9 +62,15 @@ export function FpsPanel({ entries, worlds, worldFpsMap, parser }: FpsPanelProps
     max: Math.ceil(fpsStats.max) + 5,
   });
 
+  // Build ordered union of world names: worlds first, then any worldFpsMap keys not already present
+  const worldNames = [
+    ...worlds.map((w) => w.name),
+    ...[...worldFpsMap.keys()].filter((k) => !worlds.some((w) => w.name === k)),
+  ];
+
   return (
     <Box flexDirection="column">
-      {worlds.length > 1 && (
+      {worldNames.length > 1 && (
         <Box flexDirection="column" marginBottom={1}>
           <Section title="Overall FPS Over Time" color="cyan" />
           <Text color="cyan">{overallChart}</Text>
@@ -71,7 +78,7 @@ export function FpsPanel({ entries, worlds, worldFpsMap, parser }: FpsPanelProps
           <Box marginTop={1}>
             <Section title="Overall FPS Statistics" color="magenta" />
           </Box>
-          <StatsRow avg={fpsStats.avg} min={fpsStats.min} max={fpsStats.max} />
+          <StatsRow stats={fpsStats} />
         </Box>
       )}
 
@@ -79,13 +86,13 @@ export function FpsPanel({ entries, worlds, worldFpsMap, parser }: FpsPanelProps
         <Section title="FPS Analysis" color="blue" />
       </Box>
 
-      {worlds.map((world) => {
-        const data = worldFpsMap.get(world.name);
+      {worldNames.map((worldName) => {
+        const data = worldFpsMap.get(worldName);
 
         if (!data || data.fps.length === 0) {
           return (
-            <Box key={world.name} marginTop={1} paddingLeft={2}>
-              <Text color="yellow">{world.name} — No FPS data available</Text>
+            <Box key={worldName} marginTop={1} paddingLeft={2}>
+              <Text color="yellow">{worldName} — No FPS data available</Text>
             </Box>
           );
         }
@@ -99,15 +106,15 @@ export function FpsPanel({ entries, worlds, worldFpsMap, parser }: FpsPanelProps
         const duration = parser.calculateDuration(data.startTime, data.endTime);
 
         return (
-          <Box key={world.name} flexDirection="column" marginTop={1}>
+          <Box key={worldName} flexDirection="column" marginTop={1}>
             <Text color="blue" bold>
-              {'  '}📍 {world.name}
+              {'  '}📍 {worldName}
             </Text>
             <Box marginTop={1}>
               <Text color="blue">{chart}</Text>
             </Box>
             <Box marginTop={1} marginBottom={1}>
-              <StatsRow duration={duration} avg={stats.avg} min={stats.min} max={stats.max} />
+              <StatsRow stats={stats} duration={duration} />
             </Box>
           </Box>
         );
