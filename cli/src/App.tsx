@@ -16,16 +16,17 @@ interface AppProps {
   logfile: string;
   options: AppOptions;
   version: string;
+  parserFactory?: () => ZwiftLogParser;
 }
 
-export function App({ logfile, options, version }: AppProps) {
+export function App({ logfile, options, version, parserFactory = () => new ZwiftLogParser() }: AppProps) {
   const { exit } = useApp();
 
   let error: string | null = null;
   let content: ReturnType<ZwiftLogParser['parseFile']> | null = null;
   let worlds: ReturnType<ZwiftLogParser['parseWorlds']> = [];
   let worldFpsMap = new Map<string, WorldFpsData>();
-  const parser = new ZwiftLogParser();
+  const parser = parserFactory();
 
   try {
     content = parser.parseFile(logfile);
