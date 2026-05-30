@@ -82,14 +82,13 @@ describe('MetadataPanel', () => {
     const { lastFrame } = render(
       <MetadataPanel
         metadata={fullMetadata}
-        networkStats={{ tcpDisconnects: 1, udpRxErrors: 0, udpTxErrors: 0 }}
+        networkStats={{ tcpDisconnects: 1, udpTimeouts: 5 }}
       />,
     );
     const frame = lastFrame()!;
     expect(frame).toContain('Network');
     expect(frame).toContain('TCP Disconnects:');
-    expect(frame).toContain('UDP Rx Errors:');
-    expect(frame).toContain('UDP Tx Errors:');
+    expect(frame).toContain('UDP Timeouts:');
   });
 
   it('omits network section when networkStats is not provided', () => {
@@ -98,16 +97,15 @@ describe('MetadataPanel', () => {
     expect(frame).not.toContain('TCP Disconnects:');
   });
 
-  it('shows network values including non-zero TCP disconnects', () => {
+  it('shows network values including non-zero counts', () => {
     const { lastFrame } = render(
       <MetadataPanel
         metadata={fullMetadata}
-        networkStats={{ tcpDisconnects: 3, udpRxErrors: 5, udpTxErrors: 2 }}
+        networkStats={{ tcpDisconnects: 3, udpTimeouts: 8 }}
       />,
     );
     const frame = lastFrame()!;
     expect(frame).toContain('3');
-    expect(frame).toContain('5');
-    expect(frame).toContain('2');
+    expect(frame).toContain('8');
   });
 });

@@ -70,8 +70,7 @@ export function MetadataPanel({ metadata, duration, networkStats }: MetadataPane
             <Section title="Network" color="blue" />
           </Box>
           <NetworkRow label="TCP Disconnects:" value={networkStats.tcpDisconnects} />
-          <NetworkRow label="UDP Rx Errors:" value={networkStats.udpRxErrors} />
-          <NetworkRow label="UDP Tx Errors:" value={networkStats.udpTxErrors} />
+          <NetworkRow label="UDP Timeouts:" value={networkStats.udpTimeouts} />
         </Box>
       )}
     </Box>

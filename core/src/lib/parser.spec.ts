@@ -34,6 +34,24 @@ describe('ZwiftLogParser', () => {
       const metadata = parser.parseMetadata(content);
       expect(metadata.gpu).toBe('NVIDIA GeForce RTX 3080');
     });
+
+    it('strips API descriptor suffix from GPU', () => {
+      const content = 'Graphics Renderer: NVIDIA GeForce RTX 5060/PCIe/SSE2';
+      const metadata = parser.parseMetadata(content);
+      expect(metadata.gpu).toBe('NVIDIA GeForce RTX 5060');
+    });
+
+    it('strips generation prefix and annotations from Intel CPU', () => {
+      const content = 'CPU: 12th Gen Intel(R) Core(TM) i5-12600KF';
+      const metadata = parser.parseMetadata(content);
+      expect(metadata.cpu).toBe('Core i5-12600KF');
+    });
+
+    it('leaves plain CPU names unchanged', () => {
+      const content = 'CPU: Ryzen 9 5900X';
+      const metadata = parser.parseMetadata(content);
+      expect(metadata.cpu).toBe('Ryzen 9 5900X');
+    });
   });
 
   describe('parseFPSLines', () => {
@@ -265,8 +283,8 @@ describe('ZwiftLogParser', () => {
       expect(metadata.logTime).toBe('21:09:07 2026-01-08');
       expect(metadata.gameVersion).toBe('1.104.4(157262) rc/1.104.4');
       expect(metadata.device).toBe('PC');
-      expect(metadata.gpu).toBe('NVIDIA GeForce RTX 5060/PCIe/SSE2');
-      expect(metadata.cpu).toContain('i5-12600KF');
+      expect(metadata.gpu).toBe('NVIDIA GeForce RTX 5060');
+      expect(metadata.cpu).toBe('Core i5-12600KF');
       expect(metadata.graphicsProfile).toBe('ultra');
     });
 
@@ -383,7 +401,7 @@ describe('ZwiftLogParser', () => {
   describe('parseNetworkStats', () => {
     it('returns zeros when no network lines are present', () => {
       const result = parser.parseNetworkStats('no network data');
-      expect(result).toEqual({ tcpDisconnects: 0, udpRxErrors: 0, udpTxErrors: 0 });
+      expect(result).toEqual({ tcpDisconnects: 0, udpTimeouts: 0 });
     });
 
     it('counts TCP disconnects', () => {
@@ -395,32 +413,21 @@ describe('ZwiftLogParser', () => {
       expect(result.tcpDisconnects).toBe(2);
     });
 
-    it('sums UDP Rx errors across multiple metrics lines', () => {
+    it('counts UDP connection timeouts', () => {
       const content = [
-        '[10:00:00] [INFO] UDP metrics {StC Rx: 100, Rx error: 2, CtS Tx: 10, Tx error: 0}',
-        '[10:01:00] [INFO] UDP metrics {StC Rx: 200, Rx error: 3, CtS Tx: 20, Tx error: 0}',
+        '[10:00:00] [WARN] UDP connection timeout (1 so far), reconnection attempt 1',
+        '[10:01:00] [WARN] UDP connection timeout (2 so far), reconnection attempt 2',
+        '[10:02:00] [WARN] UDP connection timeout (3 so far), reconnection attempt 3',
       ].join('\n');
       const result = parser.parseNetworkStats(content);
-      expect(result.udpRxErrors).toBe(5);
-      expect(result.udpTxErrors).toBe(0);
-    });
-
-    it('sums UDP Tx errors across multiple metrics lines', () => {
-      const content = [
-        '[10:00:00] [INFO] UDP metrics {StC Rx: 100, Rx error: 0, CtS Tx: 10, Tx error: 1}',
-        '[10:01:00] [INFO] UDP metrics {StC Rx: 200, Rx error: 0, CtS Tx: 20, Tx error: 4}',
-      ].join('\n');
-      const result = parser.parseNetworkStats(content);
-      expect(result.udpRxErrors).toBe(0);
-      expect(result.udpTxErrors).toBe(5);
+      expect(result.udpTimeouts).toBe(3);
     });
 
     it('parses network stats correctly from fixture log', () => {
       const rawContent = readFileSync(FIXTURE_LOG, 'utf-8');
       const result = parser.parseNetworkStats(rawContent);
       expect(result.tcpDisconnects).toBe(3);
-      expect(result.udpRxErrors).toBe(0);
-      expect(result.udpTxErrors).toBe(0);
+      expect(result.udpTimeouts).toBe(3);
     });
   });
 });

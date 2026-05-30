@@ -24,8 +24,7 @@ export type PairedDevice = {
 
 export type NetworkStats = {
   tcpDisconnects: number;
-  udpRxErrors: number;
-  udpTxErrors: number;
+  udpTimeouts: number;
 };
 
 export type LogMetadata = {
@@ -93,10 +92,10 @@ export class ZwiftLogParser {
       metadata.launcherVersion = launcherMatch[1].trim();
     }
 
-    // Extract GPU info
+    // Extract GPU info — strip API descriptor suffix (e.g. "/PCIe/SSE2")
     const gpuMatch = content.match(/Graphics Renderer: ([^\n]+)/);
     if (gpuMatch) {
-      metadata.gpu = gpuMatch[1].trim();
+      metadata.gpu = gpuMatch[1].trim().replace(/\/.*$/, '').trim();
     }
 
     // Extract GPU Driver version
@@ -105,10 +104,15 @@ export class ZwiftLogParser {
       metadata.gpuDriver = driverMatch[1].trim();
     }
 
-    // Extract CPU
+    // Extract CPU — strip marketing prefix (e.g. "12th Gen Intel(R) Core(TM) " → "Core i5-12600KF")
     const cpuMatch = content.match(/CPU: ([^\n]+)/);
     if (cpuMatch) {
-      metadata.cpu = cpuMatch[1].trim();
+      let cpu = cpuMatch[1].trim();
+      cpu = cpu.replace(/\((?:R|TM)\)/gi, '');    // remove (R) and (TM)
+      cpu = cpu.replace(/\s+/g, ' ').trim();       // normalize whitespace
+      cpu = cpu.replace(/^\d+\w+\s+Gen\s+/i, ''); // remove "12th Gen "
+      cpu = cpu.replace(/^(Intel|AMD)\s+/i, '');  // remove vendor name
+      metadata.cpu = cpu.trim();
     }
 
     // Extract RAM
@@ -704,15 +708,7 @@ export class ZwiftLogParser {
 
   parseNetworkStats(content: string): NetworkStats {
     const tcpDisconnects = (content.match(/\[INFO\] TCP disconnected/g) ?? []).length;
-    const udpRegex =
-      /\[INFO\] UDP metrics \{StC Rx: \d+, Rx error: (\d+), CtS Tx: \d+, Tx error: (\d+)\}/g;
-    let udpRxErrors = 0;
-    let udpTxErrors = 0;
-    let match;
-    while ((match = udpRegex.exec(content)) !== null) {
-      udpRxErrors += parseInt(match[1], 10);
-      udpTxErrors += parseInt(match[2], 10);
-    }
-    return { tcpDisconnects, udpRxErrors, udpTxErrors };
+    const udpTimeouts = (content.match(/\[WARN\] UDP connection timeout/g) ?? []).length;
+    return { tcpDisconnects, udpTimeouts };
   }
 }

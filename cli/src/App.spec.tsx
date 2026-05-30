@@ -22,7 +22,7 @@ describe('App', () => {
       parseWorlds: vi.fn().mockReturnValue(defaultWorlds),
       parseFpsPerWorld: vi.fn().mockReturnValue(new Map()),
       parseDevices: vi.fn().mockReturnValue([]),
-      parseNetworkStats: vi.fn().mockReturnValue({ tcpDisconnects: 0, udpRxErrors: 0, udpTxErrors: 0 }),
+      parseNetworkStats: vi.fn().mockReturnValue({ tcpDisconnects: 0, udpTimeouts: 0 }),
       calculateFpsStats: vi.fn().mockReturnValue({ avg: 60, min: 55, max: 65, p1: 55, p95: 65, count: 10 }),
       downsampleData: vi.fn().mockImplementation((data: number[]) => data),
       calculateDuration: vi.fn().mockReturnValue('30m 0s'),
@@ -179,8 +179,7 @@ describe('App', () => {
   it('renders network stats in MetadataPanel', () => {
     (mockMethods.parseNetworkStats as ReturnType<typeof vi.fn>).mockReturnValue({
       tcpDisconnects: 2,
-      udpRxErrors: 0,
-      udpTxErrors: 0,
+      udpTimeouts: 0,
     });
     const { frames } = render(
       <App logfile="fake.log" options={allOptions} version="1.0.0" parserFactory={parserFactory} />,
