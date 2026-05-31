@@ -52,7 +52,7 @@
     "@inquirer/prompts": "^8.4.1",
     "asciichart": "^1.5.25",
     "chalk": "^5.6.2",
-    "commander": "^14.0.3",
+    "commander": "^15.0.0",
     "ink": "^7.0.0",
     "react": "^19.2.5",
     "tslib": "^2.8.1"
